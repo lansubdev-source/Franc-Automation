@@ -1,11 +1,9 @@
 import {DashboardLayout} from '@/components/dashboard/DashboardLayout';
-import { MetricCard } from '@/components/dashboard/MetricCard';
-import { CircularGauge } from '@/components/dashboard/CircularGauge';
-import { RealtimeChart } from '@/components/dashboard/RealtimeChart';
+import { MetricCard, CircularGauge, RealtimeChart } from '@/pages/Dashboard';
 import { useLiveData } from '@/hooks/useLiveData';
 import { Thermometer, Droplets, Gauge, Wifi } from 'lucide-react';
 
-const Index = () => {
+const DashboardPage = () => {
   const { currentData, chartData, tableData } = useLiveData();
 
   const getTemperatureStatus = (temp: number) => {
@@ -114,4 +112,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default DashboardPage;

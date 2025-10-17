@@ -3,8 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
-import Index from "@/pages/Index";
+import Login from "@/pages/Login";
 import Devices from "@/pages/Devices";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
@@ -14,6 +13,7 @@ import Sensors from "@/pages/Sensors";
 import { DataTable } from "@/pages/DataTable";
 import DashboardBuilder from "@/pages/DashboardBuilder";
 import Dashboards from "@/pages/Dashboards";
+import  DashboardPage  from "@/pages/DashboardPage";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +27,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Login />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/devices" element={<Devices />} />
           <Route path="/sensors" element={<Sensors />} />
           <Route path="/settings" element={<Settings />} />
