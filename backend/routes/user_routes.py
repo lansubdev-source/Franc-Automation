@@ -2,9 +2,9 @@
 
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from extensions import db, socketio
-from models import User, Role, Device
-from utils.audit import log_info, emit_event
+from backend.extensions import db, socketio
+from backend.models import User, Role, Device
+from backend.utils.audit import log_info, emit_event
 
 user_bp = Blueprint("users", __name__)
 
@@ -150,3 +150,19 @@ def delete_user(user_id):
     log_info(f"User deleted: {user.username} (id={user.id})")
     emit_event("user_deleted", {"id": user.id, "username": user.username})
     return jsonify({"message": "User deleted successfully"}), 200
+# --------------------------
+# 📘 Get all permissions
+# --------------------------
+@user_bp.route("/users/permissions", methods=["GET"])
+def get_all_permissions():
+    from backend.models import Permission
+
+    permissions = Permission.query.all()
+    result = []
+    for p in permissions:
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "description": p.description
+        })
+    return jsonify(result), 200

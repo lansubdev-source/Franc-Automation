@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
-from models import db, User
+from backend.models import db, User
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 from datetime import datetime

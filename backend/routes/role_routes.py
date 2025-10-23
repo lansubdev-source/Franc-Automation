@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import SQLAlchemyError
-from extensions import db
-from models import Role, Permission
+from backend.extensions import db
+from backend.models import Role, Permission
 
 role_bp = Blueprint("role_bp", __name__, url_prefix="/api/users")
 

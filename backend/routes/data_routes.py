@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models import SensorData
+from backend.models import SensorData
 from datetime import datetime
 
 data_bp = Blueprint("data_bp", __name__)

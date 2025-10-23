@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from extensions import db, socketio
-from models import SensorData, Device
+from backend.models import SensorData, Device
 from sqlalchemy import desc
 from datetime import datetime, timedelta
 

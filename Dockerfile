@@ -1,57 +1,62 @@
 # ==============================
-# Single Dockerfile for frontend + backend
+# Combined Dockerfile for Frontend + Backend (Franc Automation)
 # ==============================
-# Stage 1: Build frontend
+
+# ---------- Stage 1: Build Frontend ----------
 FROM node:20-alpine AS frontend-build
 
 # Set working directory
 WORKDIR /app/frontend
 
-# Copy frontend package.json and lockfile
+# Copy frontend dependencies and install
 COPY frontend/package*.json ./
+RUN npm ci
 
-# Install frontend dependencies
-RUN npm install
-
-# Copy frontend source
+# Copy full frontend source and build
 COPY frontend/ ./
-
-# Build frontend
 RUN npm run build
 
-# Stage 2: Backend + combined image
+
+# ---------- Stage 2: Backend + Combined Image ----------
 FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install OS dependencies
+# Install essential OS dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY backend/requirements.txt ./
+# Copy and install backend Python dependencies
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source
+# Copy backend source code
 COPY backend/ ./backend
 
-# Copy frontend build from previous stage
+# ✅ Add backend folder to Python path
+ENV PYTHONPATH="/app"
+
+# Copy built frontend from previous stage
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
-# Expose port for Flask + Socket.IO
+# Create instance folder for SQLite DB
+RUN mkdir -p ./backend/instance
+
+# Expose backend (Flask) port
 EXPOSE 5000
 
-# Set environment variables
+# Environment variables
 ENV FLASK_APP=backend.app
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_ENV=production
 
-# Create instance folder for SQLite
-RUN mkdir -p ./backend/instance
+# --- Optional: Auto-initialize migrations if missing ---
+# (This ensures the app doesn’t crash on first build)
+RUN mkdir -p /app/backend/migrations || true
 
-# Command to run the backend (and frontend static served via Flask)
+# Start Flask backend (serves API + built frontend)
 CMD ["python", "-u", "backend/app.py"]

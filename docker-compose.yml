@@ -1,12 +1,19 @@
 version: "3.9"
+
 services:
-  app:
+  francauto:
     build: .
+    container_name: francauto-app
     ports:
-      - "5000:5000"
+      - "5000:5000"        # Flask backend
     volumes:
-      - ./backend/instance:/app/backend/instance
+      # ✅ Mount entire backend so migrations and code sync properly
       - ./backend:/app/backend
-      - ./frontend:/app/frontend
+      # Optional: keep instance folder persistent separately
+      - ./backend/instance:/app/backend/instance
     environment:
       VITE_API_URL: "http://localhost:5000"
+      FLASK_ENV: development
+      FLASK_APP: backend.app
+      FLASK_RUN_HOST: 0.0.0.0
+    restart: unless-stopped

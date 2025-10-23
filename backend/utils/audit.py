@@ -1,6 +1,5 @@
 # backend/utils/audit.py
 import logging
-from extensions import socketio
 from flask import current_app
 
 # configure root logger (only once)
@@ -11,6 +10,7 @@ logging.basicConfig(
 
 logger = logging.getLogger("franc-automation")
 
+
 def log_info(msg, **kwargs):
     """Log to terminal and Flask app.logger if available."""
     logger.info(msg)
@@ -19,10 +19,18 @@ def log_info(msg, **kwargs):
     except Exception:
         pass
 
+
 def emit_event(event_name: str, payload: dict):
-    """Emit over socketio and also log to terminal."""
+    """
+    Emit over SocketIO if initialized; log regardless.
+    Avoids 'NoneType' error when SocketIO is not ready.
+    """
     try:
-        socketio.emit(event_name, payload)
-        log_info(f"EMIT {event_name}: {payload}")
+        from backend.extensions import socketio  # import inside function
+        if socketio:
+            socketio.emit(event_name, payload)
+            log_info(f"[SOCKETIO] EMIT {event_name}: {payload}")
+        else:
+            log_info(f"[SOCKETIO] Skipped emit {event_name}: socketio not initialized")
     except Exception as e:
-        log_info(f"EMIT ERROR {event_name}: {e}")
+        log_info(f"[SOCKETIO] EMIT ERROR {event_name}: {e}")

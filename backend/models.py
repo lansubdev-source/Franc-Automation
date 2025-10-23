@@ -1,25 +1,31 @@
 from datetime import datetime
-from extensions import db
+from backend.extensions import db
 
 # ==========================================================
 # Association Tables
 # ==========================================================
 role_permissions = db.Table(
     "role_permissions",
+    db.metadata,  # ✅ include metadata explicitly
     db.Column("role_id", db.Integer, db.ForeignKey("roles.id"), primary_key=True),
-    db.Column("permission_id", db.Integer, db.ForeignKey("permissions.id"), primary_key=True)
+    db.Column("permission_id", db.Integer, db.ForeignKey("permissions.id"), primary_key=True),
+    extend_existing=True  # ✅ avoids double-definition crash
 )
 
 user_roles = db.Table(
     "user_roles",
+    db.metadata,
     db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
-    db.Column("role_id", db.Integer, db.ForeignKey("roles.id"), primary_key=True)
+    db.Column("role_id", db.Integer, db.ForeignKey("roles.id"), primary_key=True),
+    extend_existing=True,
 )
 
 user_devices = db.Table(
     "user_devices",
+    db.metadata,
     db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
-    db.Column("device_id", db.Integer, db.ForeignKey("devices.id"), primary_key=True)
+    db.Column("device_id", db.Integer, db.ForeignKey("devices.id"), primary_key=True),
+    extend_existing=True,
 )
 
 

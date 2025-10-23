@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from extensions import db, socketio
-from models import Sensor, Device  # ✅ fixed model name
+from backend.extensions import db, socketio
+from backend.models import Sensor, Device  # ✅ fixed model name
 
 sensor_bp = Blueprint("sensors", __name__, url_prefix="/api")
 

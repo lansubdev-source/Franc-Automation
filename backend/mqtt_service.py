@@ -1,8 +1,8 @@
 import json
 import paho.mqtt.client as mqtt
 from datetime import datetime
-from extensions import db, socketio
-from models import Device, SensorData
+from backend.extensions import db, socketio
+from backend.models import Device, SensorData
 from app import app   # Import Flask app for context
 
 # MQTT broker configuration

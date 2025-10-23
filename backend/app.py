@@ -3,15 +3,17 @@ import threading
 import tempfile
 import subprocess
 import time
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
-from extensions import db, socketio
+from backend.extensions import db, socketio
+from backend import models
 
-# Lightweight cross-platform inter-process file lock to avoid adding the 'fasteners' dependency.
+# Lightweight cross-platform inter-process file lock
 try:
     import msvcrt  # Windows
 except ImportError:
     import fcntl  # Unix
+
 
 class InterProcessLock:
     def __init__(self, path):
@@ -20,15 +22,12 @@ class InterProcessLock:
 
     def acquire(self, blocking=True, timeout=None):
         start = time.time()
-        # open file for locking
         self.fd = open(self.lockfile, "w+")
         while True:
             try:
                 if os.name == "nt":
-                    # Lock 1 byte (Windows)
                     msvcrt.locking(self.fd.fileno(), msvcrt.LK_NBLCK, 1)
                 else:
-                    # Exclusive non-blocking lock (Unix)
                     fcntl.flock(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 return True
             except (BlockingIOError, IOError, OSError):
@@ -62,56 +61,73 @@ class InterProcessLock:
     def __exit__(self, exc_type, exc, tb):
         self.release()
 
+
 from flask_migrate import Migrate
-from models import *
-#from hooks.model_listeners import register_listeners
+from backend.models import *
+
 
 def create_app():
     app = Flask(__name__)
 
-    # ✅ Ensure instance folder exists (absolute path)
+    # ✅ Ensure instance folder exists
     instance_path = os.path.join(app.root_path, "instance")
     os.makedirs(instance_path, exist_ok=True)
 
-    # ✅ Build absolute path for SQLite DB
+    # ✅ SQLite DB path
     db_path = os.path.join(instance_path, "devices.db")
 
-    # Database configuration
+    # Database config
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
         "DATABASE_URL", f"sqlite:///{db_path}"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # Enable CORS for frontend
+    # Enable CORS
     CORS(app)
 
     # Initialize extensions
     db.init_app(app)
-    migrate = Migrate(app, db)
+    Migrate(app, db)
     socketio.init_app(app, cors_allowed_origins="*")
 
     # Register blueprints
-    from routes.device_routes import device_bp
-    from routes.data_routes import data_bp
-    from routes.auth_routes import auth_bp
-    from routes.settings_routes import settings_bp 
-    from routes.sensor_routes import sensor_bp
-    from routes.user_routes import user_bp
+    from backend.routes.device_routes import device_bp
+    from backend.routes.data_routes import data_bp
+    from backend.routes.auth_routes import auth_bp
+    from backend.routes.settings_routes import settings_bp
+    from backend.routes.sensor_routes import sensor_bp
+    from backend.routes.user_routes import user_bp
+    from backend.routes.role_routes import role_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(device_bp, url_prefix="/api")
     app.register_blueprint(data_bp, url_prefix="/api")
     app.register_blueprint(settings_bp, url_prefix="/api")
     app.register_blueprint(sensor_bp, url_prefix="/api")
-    app.register_blueprint(user_bp,url_prefix="/api")
+    app.register_blueprint(user_bp, url_prefix="/api")
+    app.register_blueprint(role_bp, url_prefix="/api/users")
 
-    @app.route("/")
-    def home():
-        return jsonify({"message": "✅ Franc Automation Backend Active"})
+    # ✅ Serve Frontend React Build (React Router friendly)
+    FRONTEND_DIR = os.path.join(app.root_path, "../frontend/dist")
 
-       # after db.init_app(app) inside create_app
-        with app.app_context():
-         register_listeners()
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def serve_react(path):
+        # Skip API routes
+        if path.startswith("api/"):
+            return jsonify({"error": "Invalid API route"}), 404
+
+        # Serve static assets if they exist
+        file_path = os.path.join(FRONTEND_DIR, path)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return send_from_directory(FRONTEND_DIR, path)
+
+        # Otherwise, serve index.html (React Router fallback)
+        index_file = os.path.join(FRONTEND_DIR, "index.html")
+        if os.path.exists(index_file):
+            return send_from_directory(FRONTEND_DIR, "index.html")
+
+        return jsonify({"message": "✅ Franc Automation Backend Active"}), 200
 
     return app
 
@@ -121,9 +137,9 @@ app = create_app()
 
 # --- Helper: Auto-migration ---
 def auto_migrate():
-    """Automatically migrate DB schema when app starts or model changes occur."""
     try:
         print("[MIGRATION] 🔍 Checking for new migrations...")
+        subprocess.run(["flask", "db", "init"], check=False)
         subprocess.run(["flask", "db", "migrate", "-m", "auto migration"], check=False)
         subprocess.run(["flask", "db", "upgrade"], check=False)
         print("[MIGRATION] ✅ Database migration applied successfully!")
@@ -144,8 +160,11 @@ os.environ["WERKZEUG_RUN_MAIN"] = "true"
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-        print("✅ Database ensured at:", os.path.join(app.root_path, "instance", "devices.db"))
-        auto_migrate()  # ✅ Automatically run migrations at startup
+        print(
+            "✅ Database ensured at:",
+            os.path.join(app.root_path, "instance", "devices.db"),
+        )
+        auto_migrate()
 
     lock_path = os.path.join(tempfile.gettempdir(), "mqtt_init.lock")
     mqtt_lock = InterProcessLock(lock_path)
@@ -157,5 +176,5 @@ if __name__ == "__main__":
     else:
         print("[SKIP] MQTT already running in another process.")
 
-    print("\n Franc Automation Backend running at: http://127.0.0.1:5000\n")
+    print("\n Franc Automation Backend + Frontend running at: http://127.0.0.1:5000\n")
     socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)

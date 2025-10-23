@@ -34,7 +34,7 @@ const RoleManagement: React.FC = () => {
     try {
       const res = await fetch("http://127.0.0.1:5000/api/users/roles");
       const data = await res.json();
-      setRoles(data);
+      setRoles(data.data || []);
     } catch (err) {
       console.error("Error fetching roles:", err);
     }
@@ -44,7 +44,7 @@ const RoleManagement: React.FC = () => {
     try {
       const res = await fetch("http://127.0.0.1:5000/api/users/permissions");
       const data = await res.json();
-      setPermissions(data);
+      setPermissions(data || []);
     } catch (err) {
       console.error("Error fetching permissions:", err);
     }

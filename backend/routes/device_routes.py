@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify, current_app
-from extensions import db, socketio
-from models import Device
+from backend.extensions import db, socketio
+from backend.models import Device
 from datetime import datetime
-from utils.audit import log_info, emit_event
+from backend.utils.audit import log_info, emit_event
 from subprocess import run
 
 device_bp = Blueprint("device_bp", __name__)
