@@ -1,6 +1,6 @@
 """
 Utility Scripts for Sensor Management
-Run these manually in terminal, e.g.:
+Run these manually:
 👉 python -m scripts.sensor_scripts seed
 👉 python -m scripts.sensor_scripts simulate
 👉 python -m scripts.sensor_scripts clear
@@ -13,8 +13,8 @@ from datetime import datetime
 from faker import Faker
 
 from app import create_app
-from extensions import db
-from models import Device, SensorData
+from backend.extensions import db
+from backend.models import Device, Sensor  # ✅ unified model name
 
 fake = Faker()
 app = create_app()
@@ -32,7 +32,7 @@ def seed_sensors(count=10):
 
         for _ in range(count):
             device = random.choice(devices)
-            data = SensorData(
+            data = Sensor(
                 device_id=device.id,
                 topic=f"devices/{device.id}/sensor",
                 payload=fake.json(data_columns={"status": "active", "voltage": random.uniform(3.0, 4.2)}),
@@ -69,7 +69,7 @@ def simulate_mqtt(device_name=None, interval=5):
         try:
             while True:
                 for device in devices:
-                    new_data = SensorData(
+                    new_data = Sensor(
                         device_id=device.id,
                         topic=f"devices/{device.id}/sensor",
                         payload=fake.json(data_columns={"status": "ok", "signal_strength": random.randint(50, 100)}),
@@ -80,7 +80,7 @@ def simulate_mqtt(device_name=None, interval=5):
                     )
                     db.session.add(new_data)
                     db.session.commit()
-                    print(f"📡 Added data for device: {device.name} → Temp: {new_data.temperature}°C")
+                    print(f"📡 Added data for {device.name}: Temp {new_data.temperature}°C, Humidity {new_data.humidity}%")
 
                 time.sleep(interval)
         except KeyboardInterrupt:
@@ -92,9 +92,9 @@ def simulate_mqtt(device_name=None, interval=5):
 # ------------------------------------------------------
 def clear_sensors():
     with app.app_context():
-        num_rows = db.session.query(SensorData).delete()
+        num_rows = db.session.query(Sensor).delete()
         db.session.commit()
-        print(f"🧹 Cleared {num_rows} sensor data entries.")
+        print(f"🧹 Cleared {num_rows} sensor entries.")
 
 
 # ------------------------------------------------------

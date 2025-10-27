@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { io } from "socket.io-client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import Sidebar from "@/components/dashboard/Sidebar";
 import {
@@ -156,84 +157,94 @@ const CircularGauge: React.FC<CircularGaugeProps> = ({
 // ---------------- REALTIME CHART ----------------
 interface RealtimeChartProps {
   title?: string;
-  data?: any[];
+  data: any[];
   lines?: { key: string; color: string; name: string }[];
 }
 
-const RealtimeChart: React.FC<RealtimeChartProps> = ({
-  title = "Real-Time Sensor Data",
-  data,
-  lines,
-}) => {
-  const [chartData, setChartData] = useState<{ time: string; value: number }[]>(
-    []
-  );
+const RealtimeChart: React.FC<RealtimeChartProps> = ({ data }) => (
+  <div className="bg-[#161b22] p-5 rounded-2xl shadow-md">
+    <h3 className="text-white text-lg font-semibold mb-4">
+      Real-Time Sensor Data
+    </h3>
+    <ResponsiveContainer width="100%" height={250}>
+      <LineChart data={data}>
+        <XAxis dataKey="timestamp" stroke="#8884d8" />
+        <YAxis stroke="#8884d8" />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "#1f2937",
+            border: "none",
+            borderRadius: "8px",
+          }}
+          labelStyle={{ color: "#fff" }}
+        />
+        <Legend />
+        <Line
+          type="monotone"
+          dataKey="temperature"
+          stroke="#ef4444"
+          dot={false}
+          name="Temperature (°C)"
+        />
+        <Line
+          type="monotone"
+          dataKey="humidity"
+          stroke="#3b82f6"
+          dot={false}
+          name="Humidity (%)"
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+);
+
+// ---------------- MAIN DASHBOARD ----------------
+export default function Dashboard() {
+  const [temperature, setTemperature] = useState<number>(0);
+  const [humidity, setHumidity] = useState<number>(0);
+  const [pressure, setPressure] = useState<number>(0);
+  const [devicesOnline, setDevicesOnline] = useState<number>(0);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!data) {
-      const interval = setInterval(() => {
-        const now = new Date().toLocaleTimeString();
-        const newData = {
-          time: now,
-          value: Math.floor(Math.random() * 100),
-        };
-        setChartData((prev) => [...prev.slice(-10), newData]);
-      }, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [data]);
+    const socket = io("http://127.0.0.1:5000"); // ✅ Flask Socket.IO backend
 
-  const displayData = data || chartData;
+    socket.on("connect", () => {
+      console.log("[Socket] ✅ Connected to backend");
+    });
 
-  return (
-    <div className="bg-[#161b22] p-5 rounded-2xl shadow-md">
-      <h3 className="text-white text-lg font-semibold mb-4">{title}</h3>
-      <ResponsiveContainer width="100%" height={250}>
-        <LineChart data={displayData}>
-          <XAxis dataKey={data ? "timestamp" : "time"} stroke="#8884d8" />
-          <YAxis stroke="#8884d8" />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#1f2937",
-              border: "none",
-              borderRadius: "8px",
-            }}
-            labelStyle={{ color: "#fff" }}
-          />
-          <Legend />
-          {lines ? (
-            lines.map((line) => (
-              <Line
-                key={line.key}
-                type="monotone"
-                dataKey={line.key}
-                stroke={line.color}
-                dot={false}
-                name={line.name}
-              />
-            ))
-          ) : (
-            <Line type="monotone" dataKey="value" stroke="#3b82f6" dot={false} />
-          )}
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
+    // Listen for dashboard updates
+    socket.on("dashboard_update", (data) => {
+      console.log("[Socket] 📊 Dashboard update:", data);
+      setTemperature(data.temperature);
+      setHumidity(data.humidity);
+      setPressure(data.pressure);
+      setDevicesOnline(data.devices_online);
 
-// ---------------- MAIN DASHBOARD PAGE ----------------
-export default function Dashboard() {
+      // Append to chart
+      setChartData((prev) => [
+        ...prev.slice(-20),
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          temperature: data.temperature,
+          humidity: data.humidity,
+        },
+      ]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   return (
     <DashboardLayout>
       <div className="flex h-full bg-[#0d1117] text-white">
         <Sidebar />
-
         <main className="flex-1 p-6 overflow-y-auto space-y-8">
           {/* HEADER */}
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-white">
-              Dashboard Overview
-            </h1>
+            <h1 className="text-2xl font-semibold text-white">Dashboard Overview</h1>
             <span className="text-sm text-gray-400">
               {new Date().toLocaleDateString()}
             </span>
@@ -243,38 +254,38 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
               title="Air Temperature"
-              value="29"
+              value={temperature.toFixed(1)}
               unit="°C"
               icon="🌡️"
               color="from-blue-500 to-blue-700"
+              status={temperature > 30 ? "critical" : "good"}
             />
             <MetricCard
               title="Humidity"
-              value="65"
+              value={humidity.toFixed(1)}
               unit="%"
               icon="💧"
               color="from-teal-500 to-cyan-600"
             />
             <MetricCard
-              title="Water Level"
-              value="72"
-              unit="%"
-              icon="🌊"
+              title="Pressure"
+              value={pressure.toFixed(2)}
+              unit="hPa"
+              icon="⚙️"
               color="from-indigo-500 to-blue-700"
             />
             <MetricCard
-              title="Soil Moisture"
-              value="58"
-              unit="%"
-              icon="🌱"
+              title="Devices Online"
+              value={devicesOnline}
+              icon="📡"
               color="from-green-500 to-emerald-700"
             />
           </div>
 
-          {/* CHART AND GAUGES */}
+          {/* CHART + GAUGES */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
             <div className="lg:col-span-2">
-              <RealtimeChart />
+              <RealtimeChart data={chartData} />
             </div>
             <div className="bg-[#161b22] p-5 rounded-2xl shadow-md flex flex-col items-center justify-center">
               <h3 className="text-white text-lg font-semibold mb-4">

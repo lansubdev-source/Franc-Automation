@@ -1,6 +1,6 @@
 # backend/scripts/seed_permissions_users.py
-from app import create_app, db
-from models import User, Role, Permission
+from backend.app import create_app, db
+from backend.models import Role, Permission, User
 from werkzeug.security import generate_password_hash
 
 app = create_app()

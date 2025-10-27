@@ -1,11 +1,11 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Edit, Trash2, UserPlus, Server, Save, User } from "lucide-react";
+import { Edit, Trash2, UserPlus, Save, User, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { useNavigate } from "react-router-dom"; // ✅ use this instead of next/navigation
+import { useNavigate } from "react-router-dom";
 
 interface UserType {
   id: string;
@@ -16,63 +16,98 @@ interface UserType {
   created_at?: string;
   is_active: boolean;
   roles?: { id: string; name: string }[];
-  permissions?: { id: string; name: string }[];
   devices?: { id: string; name: string }[];
 }
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserType[]>([]);
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
-  const [devices, setDevices] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
+  const navigate = useNavigate();
 
-  const navigate = useNavigate(); // ✅ React Router navigation hook
+  const API_BASE = "http://127.0.0.1:5000/api/users";
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
+  // Fetch users and roles
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [usersRes, rolesRes, devicesRes] = await Promise.all([
-        fetch("/users/all"),
-        fetch("/users/roles"),
-        fetch("/devices/"),
+      const [usersRes, rolesRes] = await Promise.all([
+        fetch(`${API_BASE}/all`),
+        fetch(`${API_BASE}/roles`),
       ]);
       const usersData = await usersRes.json();
       const rolesData = await rolesRes.json();
-      const devicesData = await devicesRes.json();
 
       setUsers(usersData.users || []);
       setRoles(rolesData.roles || []);
-      setDevices(devicesData.devices || []);
     } catch (err) {
       console.error("Fetch error:", err);
+      alert("Failed to fetch users from backend.");
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  // Delete user
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
-    await fetch(`/users/${id}`, { method: "DELETE" });
-    fetchAllData();
+    try {
+      const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        alert("User deleted successfully!");
+        fetchAllData();
+      } else {
+        alert("Failed to delete user");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server error while deleting user.");
+    }
   };
 
+  // Add/Edit user
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
     const id = formData.get("id")?.toString();
-    const method = id ? "PUT" : "POST";
-    const url = id ? `/users/${id}` : "/users/register";
 
-    await fetch(url, { method, body: formData });
-    setShowModal(false);
-    fetchAllData();
+    const payload = {
+      username: formData.get("username"),
+      email: formData.get("email"),
+      password: formData.get("password"),
+      image_url: formData.get("image_url"),
+      is_active: formData.get("is_active") === "true",
+    };
+
+    const url = id ? `${API_BASE}/${id}` : `${API_BASE}/register`;
+    const method = id ? "PUT" : "POST";
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        alert("User saved successfully!");
+        setShowModal(false);
+        fetchAllData();
+      } else {
+        const err = await res.json();
+        alert(`Error: ${err.error || "Failed to save user"}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server error while saving user.");
+    }
   };
 
   return (
@@ -85,7 +120,7 @@ const UserManagement: React.FC = () => {
           <Button
             variant="outline"
             className="border-blue-500 text-blue-400 hover:bg-blue-600/20"
-            onClick={() => navigate("/devices")} // ✅ updated
+            onClick={() => navigate("/devices")}
           >
             <Server className="mr-1 h-4 w-4" /> Manage Devices
           </Button>
@@ -122,7 +157,6 @@ const UserManagement: React.FC = () => {
                     <th className="px-4 py-2 text-left">Status</th>
                     <th className="px-4 py-2 text-left">Email</th>
                     <th className="px-4 py-2 text-left">Roles</th>
-                    <th className="px-4 py-2 text-left">Devices</th>
                     <th className="px-4 py-2 text-center">Actions</th>
                   </tr>
                 </thead>
@@ -143,24 +177,18 @@ const UserManagement: React.FC = () => {
                       </td>
                       <td className="px-4 py-2">{u.username}</td>
                       <td className="px-4 py-2">
-                        {u.created_at
-                          ? new Date(u.created_at).toLocaleDateString()
-                          : "-"}
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : "-"}
                       </td>
                       <td className="px-4 py-2">
                         <span
                           className={`px-2 py-1 rounded text-xs ${
-                            u.is_active
-                              ? "bg-green-700 text-green-100"
-                              : "bg-gray-700 text-gray-300"
+                            u.is_active ? "bg-green-700 text-green-100" : "bg-gray-700 text-gray-300"
                           }`}
                         >
                           {u.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
-                      <td className="px-4 py-2 truncate max-w-[150px]">
-                        {u.email}
-                      </td>
+                      <td className="px-4 py-2">{u.email}</td>
                       <td className="px-4 py-2">
                         {u.roles?.map((r) => (
                           <span
@@ -168,16 +196,6 @@ const UserManagement: React.FC = () => {
                             className="bg-gray-700 text-gray-100 text-xs px-2 py-1 rounded mr-1"
                           >
                             {r.name}
-                          </span>
-                        ))}
-                      </td>
-                      <td className="px-4 py-2">
-                        {u.devices?.map((d) => (
-                          <span
-                            key={d.id}
-                            className="bg-blue-700 text-blue-100 text-xs px-2 py-1 rounded mr-1"
-                          >
-                            {d.name}
                           </span>
                         ))}
                       </td>
@@ -224,9 +242,8 @@ const UserManagement: React.FC = () => {
                 {editingUser ? "Edit User" : "Add User"}
               </h2>
 
-              {editingUser && (
-                <input type="hidden" name="id" value={editingUser.id} />
-              )}
+              {editingUser && <input type="hidden" name="id" value={editingUser.id} />}
+
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm mb-1">Username</label>
@@ -253,9 +270,7 @@ const UserManagement: React.FC = () => {
                   <input
                     type="password"
                     name="password"
-                    placeholder={
-                      editingUser ? "Leave blank to keep current password" : ""
-                    }
+                    placeholder={editingUser ? "Leave blank to keep current password" : ""}
                     className="w-full bg-[#0d1117] border border-gray-700 p-2 rounded"
                   />
                 </div>

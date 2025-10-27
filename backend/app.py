@@ -5,15 +5,19 @@ import subprocess
 import time
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
-from backend.extensions import db, socketio
-from backend import models
+from flask_migrate import Migrate
+from backend.extensions import db, socketio       # relative import
+from backend.utils.audit import log_info          # relative import
+from backend.models import *              # import all models
+import backend.mqtt_service as mqtt_service
 
-# Lightweight cross-platform inter-process file lock
+# ==========================================================
+# Inter-process file lock for MQTT
+# ==========================================================
 try:
     import msvcrt  # Windows
 except ImportError:
     import fcntl  # Unix
-
 
 class InterProcessLock:
     def __init__(self, path):
@@ -62,18 +66,17 @@ class InterProcessLock:
         self.release()
 
 
-from flask_migrate import Migrate
-from backend.models import *
-
-
+# ==========================================================
+# Flask App Factory
+# ==========================================================
 def create_app():
     app = Flask(__name__)
 
-    # ✅ Ensure instance folder exists
+    # Ensure instance folder exists
     instance_path = os.path.join(app.root_path, "instance")
     os.makedirs(instance_path, exist_ok=True)
 
-    # ✅ SQLite DB path
+    # SQLite DB path
     db_path = os.path.join(instance_path, "devices.db")
 
     # Database config
@@ -83,14 +86,16 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # Enable CORS
-    CORS(app)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     # Initialize extensions
     db.init_app(app)
-    Migrate(app, db)
+    Migrate(app, db)  # Alembic/Migrate sees all models
     socketio.init_app(app, cors_allowed_origins="*")
 
-    # Register blueprints
+    # ==========================================================
+    # Register Blueprints
+    # ==========================================================
     from backend.routes.device_routes import device_bp
     from backend.routes.data_routes import data_bp
     from backend.routes.auth_routes import auth_bp
@@ -104,77 +109,75 @@ def create_app():
     app.register_blueprint(data_bp, url_prefix="/api")
     app.register_blueprint(settings_bp, url_prefix="/api")
     app.register_blueprint(sensor_bp, url_prefix="/api")
-    app.register_blueprint(user_bp, url_prefix="/api")
+    app.register_blueprint(user_bp, url_prefix="/api/users")
     app.register_blueprint(role_bp, url_prefix="/api/users")
 
-    # ✅ Serve Frontend React Build (React Router friendly)
+    # ==========================================================
+    # Serve React Frontend Build (production)
+    # ==========================================================
     FRONTEND_DIR = os.path.join(app.root_path, "../frontend/dist")
 
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def serve_react(path):
-        # Skip API routes
         if path.startswith("api/"):
             return jsonify({"error": "Invalid API route"}), 404
-
-        # Serve static assets if they exist
         file_path = os.path.join(FRONTEND_DIR, path)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             return send_from_directory(FRONTEND_DIR, path)
-
-        # Otherwise, serve index.html (React Router fallback)
         index_file = os.path.join(FRONTEND_DIR, "index.html")
         if os.path.exists(index_file):
             return send_from_directory(FRONTEND_DIR, "index.html")
-
         return jsonify({"message": "✅ Franc Automation Backend Active"}), 200
 
     return app
 
 
-app = create_app()
-
-
-# --- Helper: Auto-migration ---
+# ==========================================================
+# Auto-Migration Helper
+# ==========================================================
 def auto_migrate():
     try:
-        print("[MIGRATION] 🔍 Checking for new migrations...")
+        log_info("[MIGRATION] Checking migrations...")
         subprocess.run(["flask", "db", "init"], check=False)
         subprocess.run(["flask", "db", "migrate", "-m", "auto migration"], check=False)
         subprocess.run(["flask", "db", "upgrade"], check=False)
-        print("[MIGRATION] ✅ Database migration applied successfully!")
+        log_info("[MIGRATION] ✅ Database migration successful!")
     except Exception as e:
-        print(f"[MIGRATION] ⚠️ Auto-migration failed: {e}")
+        log_info(f"[MIGRATION] ⚠️ Auto-migration failed: {e}")
 
 
-# --- MQTT Background Thread ---
-def run_mqtt_thread():
-    from mqtt_service import start_mqtt
-    print("[MQTT] Starting background thread...")
-    start_mqtt()
-    print("[MQTT] Background thread running.")
+# ==========================================================
+# MQTT Background Thread
+# ==========================================================
+def run_mqtt_thread(app):
+    with app.app_context():
+        from backend.mqtt_service import start_mqtt
+        log_info("[MQTT] Starting background thread...")
+        start_mqtt()
+        log_info("[MQTT] Background thread active.")
 
-
+# ==========================================================
+# Main Entry
+# ==========================================================
 os.environ["WERKZEUG_RUN_MAIN"] = "true"
 
 if __name__ == "__main__":
+    app = create_app()
+
     with app.app_context():
-        db.create_all()
-        print(
-            "✅ Database ensured at:",
-            os.path.join(app.root_path, "instance", "devices.db"),
-        )
         auto_migrate()
 
     lock_path = os.path.join(tempfile.gettempdir(), "mqtt_init.lock")
     mqtt_lock = InterProcessLock(lock_path)
 
     if mqtt_lock.acquire(blocking=False):
-        print("[INIT] MQTT starting once across all Flask reloads...")
-        mqtt_thread = threading.Thread(target=run_mqtt_thread, daemon=True)
+        log_info("[INIT] MQTT thread starting once globally...")
+        mqtt_thread = threading.Thread(target=run_mqtt_thread, args=(app,), daemon=True)
         mqtt_thread.start()
     else:
-        print("[SKIP] MQTT already running in another process.")
+        log_info("[SKIP] MQTT already running in another process.")
 
-    print("\n Franc Automation Backend + Frontend running at: http://127.0.0.1:5000\n")
-    socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
+    log_info("🚀 Franc Automation Backend + Frontend running at http://127.0.0.1:5000")
+    #socketio.start_background_task(mqtt_service.start_mqtt)
+    socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)

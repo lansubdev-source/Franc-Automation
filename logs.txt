@@ -1,0 +1,250 @@
+PS D:\Franc-Site\Franc-Auto\Franc-Auto> docker-compose up   
+time="2025-10-25T16:19:36+05:30" level=warning msg="D:\\Franc-Site\\Franc-Auto\\Franc-Auto\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+[+] Running 2/2
+ ✔ Network franc-auto_default  Created                 0.0s 
+ ✔ Container francauto-app     Created                 0.2s 
+Attaching to francauto-app
+francauto-app  | 2025-10-25 10:49:38,457 INFO [franc-automation] [MIGRATION] Checking migrations...
+francauto-app  | 2025-10-25 10:49:38,458 INFO [app] [MIGRATION] Checking migrations...                                  
+francauto-app  | Creating directory /app/migrations ...  done
+francauto-app  | Creating directory /app/migrations/versions ...  done                                                  
+francauto-app  | Generating /app/migrations/alembic.ini ...  done                                                       
+francauto-app  | Generating /app/migrations/script.py.mako ...  done                                                    
+francauto-app  | Generating /app/migrations/README ...  done
+francauto-app  | Generating /app/migrations/env.py ...  done
+francauto-app  | Please edit configuration/connection/logging settings in /app/migrations/alembic.ini before proceeding.
+francauto-app  | INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+francauto-app  | INFO  [alembic.runtime.migration] Will assume non-transactional DDL.                                   
+francauto-app  | ERROR [flask_migrate] Error: Can't locate revision identified by '3668f01c8c84'                        
+francauto-app  | INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+francauto-app  | INFO  [alembic.runtime.migration] Will assume non-transactional DDL.                                   
+francauto-app  | ERROR [flask_migrate] Error: Can't locate revision identified by '3668f01c8c84'                        
+francauto-app  | 2025-10-25 10:49:40,670 INFO [franc-automation] [MIGRATION] ✅ Database migration successful!
+francauto-app  | 2025-10-25 10:49:40,670 INFO [app] [MIGRATION] ✅ Database migration successful!                       
+francauto-app  | 2025-10-25 10:49:40,671 INFO [franc-automation] [INIT] MQTT thread starting once globally...           
+francauto-app  | 2025-10-25 10:49:40,671 INFO [franc-automation] [MQTT] Starting background thread...                   
+francauto-app  | 2025-10-25 10:49:40,671 INFO [franc-automation] 🚀 Franc Automation Backend + Frontend running at http://127.0.0.1:5000
+francauto-app  | [MQTT] 🔄 Connecting to test.mosquitto.org:1883 ...                                                    
+francauto-app  | 2025-10-25 10:49:40,698 WARNING [werkzeug]  * Debugger is active!
+francauto-app  | 2025-10-25 10:49:40,700 INFO [werkzeug]  * Debugger PIN: 134-308-284                                   
+francauto-app  | (1) wsgi starting up on http://0.0.0.0:5000
+francauto-app  | [MQTT] ✅ Connected to test.mosquitto.org:1883
+francauto-app  | [MQTT] 📡 Subscribed to francauto/devices/+/data                                                       
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:49:47.070370')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)
+francauto-app  | (1) accepted ('172.20.0.1', 55112)
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:49:51] "GET / HTTP/1.1" 200 1998 0.007053                               
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:49:51] "GET /assets/index-kCCLai_b.js HTTP/1.1" 200 908765 0.021482     
+francauto-app  | (1) accepted ('172.20.0.1', 55128)
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:49:51] "GET /assets/index-DfMgovKW.css HTTP/1.1" 200 67133 0.004690     
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:49:51.753669')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:49:51] "GET /client_logo HTTP/1.1" 200 1998 0.001286
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:49:51] "GET /site_logo HTTP/1.1" 200 1998 0.000805                      
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:49:53] "GET /favicon.ico HTTP/1.1" 200 1998 0.001736
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:49:56] "GET /favicon.ico HTTP/1.1" 304 202 0.001858
+francauto-app  | (1) accepted ('172.20.0.1', 46948)
+francauto-app  | (1) accepted ('172.20.0.1', 46950)
+francauto-app  | Traceback (most recent call last):         
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 1514, in wsgi_app                  
+francauto-app  |     response = self.handle_exception(e)
+francauto-app  |                ^^^^^^^^^^^^^^^^^^^^^^^^    
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+francauto-app  |     return cors_after_request(app.make_response(f(*args, **kwargs)))                                   
+francauto-app  |                                                 ^^^^^^^^^^^^^^^^^^^^                                   
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app                  
+francauto-app  |     response = self.full_dispatch_request()
+francauto-app  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request      
+francauto-app  |     rv = self.handle_user_exception(e)
+francauto-app  |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^     
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+francauto-app  |     return cors_after_request(app.make_response(f(*args, **kwargs)))                                   
+francauto-app  |                                                 ^^^^^^^^^^^^^^^^^^^^                                   
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request      
+francauto-app  |     rv = self.dispatch_request()
+francauto-app  |          ^^^^^^^^^^^^^^^^^^^^^^^           
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request           
+francauto-app  |     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+francauto-app  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+francauto-app  |   File "/app/backend/routes/data_routes.py", line 12, in get_latest                                    
+francauto-app  |     latest_entry = Sensor.query.order_by(Sensor.created_at.desc()).first()                             
+francauto-app  |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                             
+francauto-app  | AttributeError: type object 'Sensor' has no attribute 'created_at'                                     
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:49:56] "GET /api/data/latest HTTP/1.1" 500 17512 0.037348               
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:49:56.675048')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:50:01.694643')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+francauto-app  | (1) accepted ('172.20.0.1', 38118)
+francauto-app  | (1) accepted ('172.20.0.1', 38132)
+francauto-app  | (1) accepted ('172.20.0.1', 38138)
+francauto-app  | 2025-10-25 10:50:05,644 INFO [franc-automation] Devices listed: count=3
+francauto-app  | 2025-10-25 10:50:05,644 INFO [app] Devices listed: count=3                                             
+francauto-app  | 2025-10-25 10:50:05,644 INFO [franc-automation] [SOCKETIO] EMIT devices_listed: {'count': 3, 'devices': [{'id': 3, 'name': 'device_001', 'protocol': 'mqtt', 'host': 'test.mosquitto.org', 'port': 1883, 'client_id': None, 'username': None, 'mqtt_version': None, 'keep_alive': None, 'auto_reconnect': None, 'reconnect_period': None, 'status': 'online', 'created_at': '2025-10-25T10:26:41.678717', 'updated_at': '2025-10-25T10:50:01.675230'}, {'id': 2, 'name': 'Factory Sensor 1', 'protocol': 'mqtt://', 'host': 'test.mosquitto.org', 'port': 1883, 'client_id': 'factory_sensor_001', 'username': 'superadmin', 'mqtt_version': '3.1.1', 'keep_alive': 60, 'auto_reconnect': True, 'reconnect_period': 5000, 'status': 'offline', 'created_at': '2025-10-25T09:30:29.661712', 'updated_at': '2025-10-25T09:30:29.624450'}, {'id': 1, 'name': 'Test Device', 'protocol': None, 'host': None, 'port': 1883, 'client_id': None, 'username': None, 'mqtt_version': None, 'keep_alive': None, 'auto_reconnect': None, 'reconnect_period': None, 'status': 'offline', 'created_at': '2025-10-24T11:15:47.091050', 'updated_at': '2025-10-24T11:15:47.091192'}]}
+francauto-app  | 2025-10-25 10:50:05,644 INFO [app] [SOCKETIO] EMIT devices_listed: {'count': 3, 'devices': [{'id': 3, 'name': 'device_001', 'protocol': 'mqtt', 'host': 'test.mosquitto.org', 'port': 1883, 'client_id': None, 'username': None, 'mqtt_version': None, 'keep_alive': None, 'auto_reconnect': None, 'reconnect_period': None, 'status': 'online', 'created_at': '2025-10-25T10:26:41.678717', 'updated_at': '2025-10-25T10:50:01.675230'}, {'id': 2, 'name': 'Factory Sensor 1', 'protocol': 'mqtt://', 'host': 'test.mosquitto.org', 'port': 1883, 'client_id': 'factory_sensor_001', 'username': 'superadmin', 'mqtt_version': '3.1.1', 'keep_alive': 60, 'auto_reconnect': True, 'reconnect_period': 5000, 'status': 'offline', 'created_at': '2025-10-25T09:30:29.661712', 'updated_at': '2025-10-25T09:30:29.624450'}, {'id': 1, 'name': 'Test Device', 'protocol': None, 'host': None, 'port': 1883, 'client_id': None, 'username': None, 'mqtt_version': None, 'keep_alive': None, 'auto_reconnect': None, 'reconnect_period': None, 'status': 'offline', 'created_at': '2025-10-24T11:15:47.091050', 'updated_at': '2025-10-24T11:15:47.091192'}]}
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:05] "GET /api/devices HTTP/1.1" 200 1410 0.018505                    
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:05] "GET /socket.io/?EIO=4&transport=polling&t=5rvm6x24 HTTP/1.1" 200 352 0.000556
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:05] "GET /favicon.ico HTTP/1.1" 304 202 0.001972                     
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:05] "GET /socket.io/?EIO=4&transport=websocket HTTP/1.1" 200 0 9.257083
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:05] "POST /socket.io/?EIO=4&transport=polling&t=5rvn518z&sid=Gd_fVYMPm5ktCEaVAAAC HTTP/1.1" 200 219 0.000943
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:05] "GET /socket.io/?EIO=4&transport=polling&t=5rvn6pw9&sid=Gd_fVYMPm5ktCEaVAAAC HTTP/1.1" 200 265 0.000449
+francauto-app  | (1) accepted ('172.20.0.1', 38150)
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:05] "GET /socket.io/?EIO=4&transport=polling&t=5rvnt8s9&sid=Gd_fVYMPm5ktCEaVAAAC HTTP/1.1" 200 233 0.000320
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:50:06.629146')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:50:11.618875')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+francauto-app  | (1) accepted ('172.20.0.1', 38158)
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:14] "OPTIONS /api/devices/3 HTTP/1.1" 200 321 0.001734               
+francauto-app  | Traceback (most recent call last):
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+francauto-app  |     self.dialect.do_execute(
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute 
+francauto-app  |     cursor.execute(statement, parameters)
+francauto-app  | sqlite3.OperationalError: no such column: sensors.temperature                                          
+francauto-app  | 
+francauto-app  | The above exception was the direct cause of the following exception:                                   
+francauto-app  | 
+francauto-app  | Traceback (most recent call last):         
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 1514, in wsgi_app                  
+francauto-app  |     response = self.handle_exception(e)
+francauto-app  |                ^^^^^^^^^^^^^^^^^^^^^^^^    
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+francauto-app  |     return cors_after_request(app.make_response(f(*args, **kwargs)))                                   
+francauto-app  |                                                 ^^^^^^^^^^^^^^^^^^^^                                   
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app                  
+francauto-app  |     response = self.full_dispatch_request()
+francauto-app  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request      
+francauto-app  |     rv = self.handle_user_exception(e)
+francauto-app  |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^     
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask_cors/extension.py", line 176, in wrapped_function
+francauto-app  |     return cors_after_request(app.make_response(f(*args, **kwargs)))                                   
+francauto-app  |                                                 ^^^^^^^^^^^^^^^^^^^^                                   
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request      
+francauto-app  |     rv = self.dispatch_request()
+francauto-app  |          ^^^^^^^^^^^^^^^^^^^^^^^           
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request           
+francauto-app  |     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+francauto-app  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+francauto-app  |   File "/app/backend/routes/device_routes.py", line 109, in delete_device                              
+francauto-app  |     db.session.delete(device)
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 672, in delete        
+francauto-app  |     return self._proxied.delete(instance)
+francauto-app  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3528, in delete       
+francauto-app  |     self._delete_impl(state, instance, head=True)                                                      
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 3555, in _delete_impl 
+francauto-app  |     cascade_states = list(
+francauto-app  |                      ^^^^^                 
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/mapper.py", line 3983, in cascade_iterator
+francauto-app  |     queue = deque(
+francauto-app  |             ^^^^^^                         
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/relationships.py", line 1525, in cascade_iterator
+francauto-app  |     tuples = self._value_as_iterable(
+francauto-app  |              ^^^^^^^^^^^^^^^^^^^^^^^^      
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/relationships.py", line 1495, in _value_as_iterable
+francauto-app  |     x = impl.get(state, dict_, passive=passive)                                                        
+francauto-app  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                        
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1096, in get       
+francauto-app  |     value = self._fire_loader_callables(state, key, passive)                                           
+francauto-app  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/attributes.py", line 1131, in _fire_loader_callables
+francauto-app  |     return self.callable_(state, passive)
+francauto-app  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/strategies.py", line 978, in _load_for_state
+francauto-app  |     return self._emit_lazyload(
+francauto-app  |            ^^^^^^^^^^^^^^^^^^^^
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/strategies.py", line 1141, in _emit_lazyload
+francauto-app  |     result = session.execute(
+francauto-app  |              ^^^^^^^^^^^^^^^^              
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute      
+francauto-app  |     return self._execute_internal(
+francauto-app  |            ^^^^^^^^^^^^^^^^^^^^^^^
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+francauto-app  |     result: Result[Any] = compile_state_cls.orm_execute_statement(                                     
+francauto-app  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                     
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+francauto-app  |     result = conn.execute(
+francauto-app  |              ^^^^^^^^^^^^^
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute      
+francauto-app  |     return meth(
+francauto-app  |            ^^^^^                           
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+francauto-app  |     return connection._execute_clauseelement(                                                          
+francauto-app  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                          
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+francauto-app  |     ret = self._execute_context(
+francauto-app  |           ^^^^^^^^^^^^^^^^^^^^^^           
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+francauto-app  |     return self._exec_single_context(
+francauto-app  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^      
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+francauto-app  |     self._handle_dbapi_exception(
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+francauto-app  |     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e                                      
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+francauto-app  |     self.dialect.do_execute(
+francauto-app  |   File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute 
+francauto-app  |     cursor.execute(statement, parameters)
+francauto-app  | sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such column: sensors.temperature        
+francauto-app  | [SQL: SELECT sensors.id AS sensors_id, sensors.device_id AS sensors_device_id, sensors.topic AS sensors_topic, sensors.payload AS sensors_payload, sensors.temperature AS sensors_temperature, sensors.humidity AS sensors_humidity, sensors.pressure AS sensors_pressure, sensors.timestamp AS sensors_timestamp
+francauto-app  | FROM sensors 
+francauto-app  | WHERE ? = sensors.device_id]
+francauto-app  | [parameters: (3,)]                         
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:14] "DELETE /api/devices/3 HTTP/1.1" 500 58748 0.107183              
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:50:16.813482')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:50:21.647950')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+francauto-app  | 172.20.0.1 - - [25/Oct/2025 10:50:25] "GET /socket.io/?EIO=4&transport=websocket&sid=Gd_fVYMPm5ktCEaVAAAC HTTP/1.1" 200 0 19.636893
+francauto-app  | 
+francauto-app  | [MQTT] 📩 Received on francauto/devices/device_001/data: {"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}
+francauto-app  | [ERROR] ❗ MQTT processing failed: (sqlite3.OperationalError) table sensors has no column named temperature
+francauto-app  | [SQL: INSERT INTO sensors (device_id, topic, payload, temperature, humidity, pressure, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)]
+francauto-app  | [parameters: (3, 'francauto/devices/device_001/data', '{"temperature": 24.7, "humidity": 56.3, "pressure": 1008.9}', 24.7, 56.3, 1008.9, '2025-10-25 10:50:26.789074')]
+francauto-app  | (Background on this error at: https://sqlalche.me/e/20/e3q8)                                           
+Gracefully stopping... (press Ctrl+C again to force)
+[+] Stopping 1/1
+ ✔ Container francauto-app  Stopped                    0.3s 
+
+PS D:\Franc-Site\Franc-Auto\Franc-Auto> docker-compose down 
+time="2025-10-25T16:20:30+05:30" level=warning msg="D:\\Franc-Site\\Franc-Auto\\Franc-Auto\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+[+] Running 2/2
+ ✔ Container francauto-app     Removed                 0.0s 
+ ✔ Network franc-auto_default  Removed                 0.4s 
+PS D:\Franc-Site\Franc-Auto\Franc-Auto> 

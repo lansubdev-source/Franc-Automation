@@ -6,10 +6,10 @@ from backend.extensions import db
 # ==========================================================
 role_permissions = db.Table(
     "role_permissions",
-    db.metadata,  # ✅ include metadata explicitly
+    db.metadata,
     db.Column("role_id", db.Integer, db.ForeignKey("roles.id"), primary_key=True),
     db.Column("permission_id", db.Integer, db.ForeignKey("permissions.id"), primary_key=True),
-    extend_existing=True  # ✅ avoids double-definition crash
+    extend_existing=True
 )
 
 user_roles = db.Table(
@@ -27,7 +27,6 @@ user_devices = db.Table(
     db.Column("device_id", db.Integer, db.ForeignKey("devices.id"), primary_key=True),
     extend_existing=True,
 )
-
 
 # ==========================================================
 # User Model
@@ -57,7 +56,6 @@ class User(db.Model):
             "created_at": self.created_at.isoformat()
         }
 
-
 # ==========================================================
 # Role Model
 # ==========================================================
@@ -84,7 +82,6 @@ class Role(db.Model):
             "created_at": self.created_at.isoformat()
         }
 
-
 # ==========================================================
 # Permission Model
 # ==========================================================
@@ -101,7 +98,6 @@ class Permission(db.Model):
             "name": self.name,
             "description": self.description
         }
-
 
 # ==========================================================
 # Device Model
@@ -125,7 +121,7 @@ class Device(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    sensor_data = db.relationship("SensorData", backref="device", lazy=True, cascade="all, delete-orphan")
+    sensors = db.relationship("Sensor", backref="device", lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -145,20 +141,20 @@ class Device(db.Model):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 
-
 # ==========================================================
-# Sensor Data Model
+# Sensor Model (with live MQTT fields)
 # ==========================================================
-class SensorData(db.Model):
-    __tablename__ = "sensor_data"
+class Sensor(db.Model):
+    __tablename__ = "sensors"
+    __table_args__ = {"extend_existing": True}
 
     id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
+    device_id = db.Column(db.Integer, db.ForeignKey('devices.id'), nullable=False)
     topic = db.Column(db.String(255))
     payload = db.Column(db.Text)
-    temperature = db.Column(db.Float)
-    humidity = db.Column(db.Float)
-    pressure = db.Column(db.Float)
+    temperature = db.Column(db.Float, nullable=True)
+    humidity = db.Column(db.Float, nullable=True)
+    pressure = db.Column(db.Float, nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -173,7 +169,6 @@ class SensorData(db.Model):
             "timestamp": self.timestamp.isoformat()
         }
 
-
 # ==========================================================
 # Settings Model
 # ==========================================================
@@ -187,18 +182,3 @@ class Setting(db.Model):
 
     def to_dict(self):
         return {"key": self.key, "value": self.value}
-# ==========================================================
-# Sensor Model
-# ==========================================================
-class Sensor(db.Model):
-    __tablename__ = "sensors"  # ✅ add table name
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    device_id = db.Column(db.Integer, db.ForeignKey('devices.id'), nullable=False)  # ✅ fix FK target
-    unit = db.Column(db.String(50))
-    min_value = db.Column(db.Float)
-    max_value = db.Column(db.Float)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-
-    device = db.relationship("Device", backref="sensors")  # ✅ add relationship (optional but recommended)

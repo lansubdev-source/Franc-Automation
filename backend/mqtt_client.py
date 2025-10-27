@@ -2,7 +2,7 @@
 import json
 import paho.mqtt.client as mqtt
 from app import db
-from models import DeviceData, Device
+from backend.models import DeviceData, Device
 from datetime import datetime
 
 # MQTT broker details — you can change to your broker (local, HiveMQ Cloud, etc.)

@@ -1,8 +1,8 @@
-"""initial migration
+"""initial clean migration
 
-Revision ID: f275d2b968eb
+Revision ID: e96bb2871c2a
 Revises: 
-Create Date: 2025-10-22 11:06:09.282122
+Create Date: 2025-10-24 10:09:01.086596
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'f275d2b968eb'
+revision = 'e96bb2871c2a'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -79,25 +79,16 @@ def upgrade():
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
     sa.PrimaryKeyConstraint('role_id', 'permission_id')
     )
-    op.create_table('sensor_data',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('device_id', sa.Integer(), nullable=False),
-    sa.Column('topic', sa.String(length=255), nullable=True),
-    sa.Column('payload', sa.Text(), nullable=True),
-    sa.Column('temperature', sa.Float(), nullable=True),
-    sa.Column('humidity', sa.Float(), nullable=True),
-    sa.Column('pressure', sa.Float(), nullable=True),
-    sa.Column('timestamp', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['device_id'], ['devices.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
     op.create_table('sensors',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('device_id', sa.Integer(), nullable=False),
+    sa.Column('sensor_type', sa.String(length=50), nullable=True),
+    sa.Column('topic', sa.String(length=100), nullable=True),
     sa.Column('unit', sa.String(length=50), nullable=True),
+    sa.Column('payload', sa.String(length=255), nullable=True),
     sa.Column('min_value', sa.Float(), nullable=True),
     sa.Column('max_value', sa.Float(), nullable=True),
+    sa.Column('device_id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['device_id'], ['devices.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -124,7 +115,6 @@ def downgrade():
     op.drop_table('user_roles')
     op.drop_table('user_devices')
     op.drop_table('sensors')
-    op.drop_table('sensor_data')
     op.drop_table('role_permissions')
     op.drop_table('users')
     op.drop_table('settings')

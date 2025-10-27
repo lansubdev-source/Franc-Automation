@@ -6,6 +6,8 @@ import {
   MoreVertical,
   Edit,
   Trash2,
+  X,
+  Save,
 } from "lucide-react";
 import { useDevicesLive } from "@/hooks/useDevicesLive";
 import { useState } from "react";
@@ -34,6 +36,10 @@ export default function Devices() {
     reconnectPeriod: 5000,
   });
 
+  // State for edit modal
+  const [editingDevice, setEditingDevice] = useState<any>(null);
+  const [editedName, setEditedName] = useState("");
+
   const handleChange = (e: any) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -44,14 +50,11 @@ export default function Devices() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    console.log("%c[FORM SUBMIT]", "color:#00c853", formData);
-
     try {
       const json = await api.addDevice(formData);
       alert("✅ Device added successfully!");
       console.log("%c[DEVICE ADDED]", "color:#00c853", json);
 
-      // Reset form
       setFormData({
         name: "",
         protocol: "mqtt://",
@@ -75,8 +78,6 @@ export default function Devices() {
 
   const handleDelete = async (deviceId: string) => {
     if (!confirm("Are you sure you want to delete this device?")) return;
-    console.log("%c[DEVICE DELETE]", "color:#ff1744", deviceId);
-
     try {
       await api.deleteDevice(deviceId);
       alert("🗑️ Device deleted successfully!");
@@ -88,9 +89,30 @@ export default function Devices() {
   };
 
   const handleEdit = (device: any) => {
-    console.log("%c[DEVICE EDIT]", "color:#ffca28", device);
-    alert(`Editing device: ${device.name}`);
-    // TODO: add edit modal or inline form
+    setEditingDevice(device);
+    setEditedName(device.name);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editedName.trim()) {
+      alert("Device name cannot be empty!");
+      return;
+    }
+
+    try {
+      await fetch(`/api/devices/${editingDevice.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editedName }),
+      });
+
+      alert("✅ Device updated successfully!");
+      setEditingDevice(null);
+      loadDevices();
+    } catch (error) {
+      console.error("❌ Edit failed:", error);
+      alert("Error updating device");
+    }
   };
 
   return (
@@ -121,7 +143,6 @@ export default function Devices() {
                 key={device.id || device.name}
                 className="bg-gradient-card p-4 rounded-xl border border-border relative"
               >
-                {/* Header with name and menu */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     {device.status === "online" ? (
@@ -134,7 +155,6 @@ export default function Devices() {
                     <h3 className="font-medium">{device.name}</h3>
                   </div>
 
-                  {/* Dropdown Menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className="p-1 rounded hover:bg-muted transition">
@@ -155,7 +175,6 @@ export default function Devices() {
                   </DropdownMenu>
                 </div>
 
-                {/* Status */}
                 <div className="flex items-center gap-1 mb-2">
                   <div
                     className={`w-2 h-2 rounded-full animate-pulse ${
@@ -171,7 +190,6 @@ export default function Devices() {
                   </span>
                 </div>
 
-                {/* Device Info */}
                 <div className="text-sm text-muted-foreground space-y-1">
                   <div className="flex items-center justify-between">
                     <span>Temperature:</span>
@@ -201,7 +219,6 @@ export default function Devices() {
         <div className="max-w-2xl bg-gradient-card shadow-lg rounded-xl p-6 border border-border">
           <h2 className="text-xl font-semibold mb-4">➕ Add Device</h2>
           <form onSubmit={handleSubmit} className="grid gap-4">
-            {/* Name */}
             <div>
               <label className="block text-sm font-medium text-muted-foreground">
                 Name *
@@ -216,7 +233,6 @@ export default function Devices() {
               />
             </div>
 
-            {/* Protocol + Version */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground">
@@ -249,7 +265,6 @@ export default function Devices() {
               </div>
             </div>
 
-            {/* Host + Port */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-muted-foreground">
@@ -279,85 +294,6 @@ export default function Devices() {
               </div>
             </div>
 
-            {/* Client + Auth */}
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">
-                Client ID
-              </label>
-              <input
-                type="text"
-                name="clientId"
-                value={formData.clientId}
-                onChange={handleChange}
-                placeholder="Leave blank for auto"
-                className="w-full bg-background border-border border rounded-lg p-2 text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="w-full bg-background border-border border rounded-lg p-2 text-foreground"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-muted-foreground">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full bg-background border-border border rounded-lg p-2 text-foreground"
-                />
-              </div>
-            </div>
-
-            {/* Keepalive + reconnect */}
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">
-                Keep Alive (s)
-              </label>
-              <input
-                type="number"
-                name="keepAlive"
-                value={formData.keepAlive}
-                onChange={handleChange}
-                className="w-full bg-background border-border border rounded-lg p-2 text-foreground"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="autoReconnect"
-                checked={formData.autoReconnect}
-                onChange={handleChange}
-              />
-              <label className="text-muted-foreground">Auto Reconnect</label>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">
-                Reconnect Period (ms)
-              </label>
-              <input
-                type="number"
-                name="reconnectPeriod"
-                value={formData.reconnectPeriod}
-                onChange={handleChange}
-                className="w-full bg-background border-border border rounded-lg p-2 text-foreground"
-              />
-            </div>
-
             <button
               type="submit"
               className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
@@ -366,6 +302,37 @@ export default function Devices() {
             </button>
           </form>
         </div>
+
+        {/* ✅ Edit Modal */}
+        {editingDevice && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div className="bg-card border border-border rounded-xl p-6 w-96 shadow-xl">
+              <h2 className="text-lg font-semibold mb-4">
+                Editing: {editingDevice.name}
+              </h2>
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                className="w-full border border-border rounded-lg p-2 mb-4 bg-background text-foreground"
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setEditingDevice(null)}
+                  className="bg-muted px-4 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" /> Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="bg-primary text-primary-foreground px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary/90"
+                >
+                  <Save className="w-4 h-4" /> Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
