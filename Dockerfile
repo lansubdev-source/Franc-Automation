@@ -35,16 +35,16 @@ COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
-COPY backend/ ./backend
+COPY backend ./backend
 
-# ✅ Add backend folder to Python path
-ENV PYTHONPATH="/app"
-
-# Copy built frontend from previous stage
+# ✅ Copy built frontend from previous stage
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 # Create instance folder for SQLite DB
 RUN mkdir -p ./backend/instance
+
+# ✅ Add backend folder to Python path
+ENV PYTHONPATH="/app"
 
 # Expose backend (Flask) port
 EXPOSE 5000
@@ -55,8 +55,7 @@ ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_ENV=production
 
 # --- Optional: Auto-initialize migrations if missing ---
-# (This ensures the app doesn’t crash on first build)
 RUN mkdir -p /app/backend/migrations || true
 
-# Start Flask backend (serves API + built frontend)
+# ✅ Start Flask backend (serves API + built frontend)
 CMD ["python", "-u", "backend/app.py"]

@@ -1,3 +1,9 @@
+# ==========================================================
+# Must patch BEFORE any Flask/threading/db imports
+# ==========================================================
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import threading
 import tempfile
@@ -6,10 +12,10 @@ import time
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
-from backend.extensions import db, socketio       # relative import
-from backend.utils.audit import log_info          # relative import
-from backend.models import *              # import all models
-import backend.mqtt_service as mqtt_service
+from backend.extensions import db, socketio
+from backend.utils.audit import log_info
+from backend.models import *
+from backend.mqtt_service import start_device_mqtt
 
 # ==========================================================
 # Inter-process file lock for MQTT
@@ -65,18 +71,15 @@ class InterProcessLock:
     def __exit__(self, exc_type, exc, tb):
         self.release()
 
-
 # ==========================================================
 # Flask App Factory
 # ==========================================================
 def create_app():
     app = Flask(__name__)
 
-    # Ensure instance folder exists
+    # Instance folder for SQLite DB
     instance_path = os.path.join(app.root_path, "instance")
     os.makedirs(instance_path, exist_ok=True)
-
-    # SQLite DB path
     db_path = os.path.join(instance_path, "devices.db")
 
     # Database config
@@ -85,13 +88,13 @@ def create_app():
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    # Enable CORS
+    # CORS + Extensions
     CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-    # Initialize extensions
     db.init_app(app)
-    Migrate(app, db)  # Alembic/Migrate sees all models
-    socketio.init_app(app, cors_allowed_origins="*")
+    Migrate(app, db)
+
+    # ✅ Use Eventlet for async socket handling
+    socketio.init_app(app, cors_allowed_origins="*", async_mode="eventlet")
 
     # ==========================================================
     # Register Blueprints
@@ -139,7 +142,6 @@ def create_app():
 def auto_migrate():
     try:
         log_info("[MIGRATION] Checking migrations...")
-        subprocess.run(["flask", "db", "init"], check=False)
         subprocess.run(["flask", "db", "migrate", "-m", "auto migration"], check=False)
         subprocess.run(["flask", "db", "upgrade"], check=False)
         log_info("[MIGRATION] ✅ Database migration successful!")
@@ -148,21 +150,40 @@ def auto_migrate():
 
 
 # ==========================================================
-# MQTT Background Thread
+# MQTT Initialization for All Devices
+# ==========================================================
+def start_all_devices(app):
+    with app.app_context():
+        from backend.models import Device
+        devices = Device.query.all()
+        if not devices:
+            log_info("[MQTT] ⚠️ No devices found in database.")
+            return
+        for d in devices:
+            try:
+                start_device_mqtt(d)
+                log_info(f"[MQTT] 🔄 Reconnected device '{d.name}' ({d.host}:{d.port})")
+            except Exception as e:
+                log_info(f"[MQTT] ⚠️ Failed to start device '{d.name}': {e}")
+
+
+# ==========================================================
+# Background Thread for MQTT
 # ==========================================================
 def run_mqtt_thread(app):
     with app.app_context():
-        from backend.mqtt_service import start_mqtt
-        log_info("[MQTT] Starting background thread...")
-        start_mqtt()
-        log_info("[MQTT] Background thread active.")
+        log_info("[MQTT] Starting dynamic MQTT connections for all devices...")
+        start_all_devices(app)
+        log_info("[MQTT] All device MQTT clients started.")
+
 
 # ==========================================================
 # Main Entry
 # ==========================================================
-os.environ["WERKZEUG_RUN_MAIN"] = "true"
-
 if __name__ == "__main__":
+    import eventlet
+    import eventlet.wsgi
+
     app = create_app()
 
     with app.app_context():
@@ -172,12 +193,20 @@ if __name__ == "__main__":
     mqtt_lock = InterProcessLock(lock_path)
 
     if mqtt_lock.acquire(blocking=False):
-        log_info("[INIT] MQTT thread starting once globally...")
+        log_info("[INIT] MQTT thread starting globally for all devices...")
         mqtt_thread = threading.Thread(target=run_mqtt_thread, args=(app,), daemon=True)
         mqtt_thread.start()
     else:
         log_info("[SKIP] MQTT already running in another process.")
 
-    log_info("🚀 Franc Automation Backend + Frontend running at http://127.0.0.1:5000")
-    #socketio.start_background_task(mqtt_service.start_mqtt)
-    socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+    log_info("🚀 Franc Automation Backend + Frontend running with Eventlet at http://0.0.0.0:5000")
+
+    # ✅ Use Eventlet WSGI server instead of Werkzeug
+    eventlet.monkey_patch()
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False,
+        use_reloader=False,
+    )

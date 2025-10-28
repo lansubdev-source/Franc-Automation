@@ -1,3 +1,6 @@
+# ==========================================================
+# backend/routes/data_routes.py — Stable + Auto Dashboard Logic
+# ==========================================================
 from flask import Blueprint, request, jsonify
 from backend.models import Sensor, Device
 from backend.extensions import db, socketio
@@ -9,23 +12,44 @@ data_bp = Blueprint("data_bp", __name__)
 
 MAX_LIMIT = 1000  # maximum rows returned in history
 
-# -------------------------------
-# 🔹 Get the latest sensor reading (any device)
-# -------------------------------
+
+# ==========================================================
+# 🔹 Get the latest reading (returns blank if no device active)
+# ==========================================================
 @data_bp.route("/data/latest", methods=["GET"])
 def get_latest():
     """
     Returns the most recent sensor reading across all devices.
+    If no devices are connected or no data exists, returns a blank response.
     """
+    active_devices = Device.query.filter(Device.status == "online").count()
+    if active_devices == 0:
+        return jsonify({
+            "message": "No active devices",
+            "temperature": None,
+            "humidity": None,
+            "pressure": None,
+            "devices_online": 0
+        }), 200
+
     latest_entry = Sensor.query.order_by(Sensor.timestamp.desc()).first()
     if not latest_entry:
-        return jsonify({"message": "No data found"}), 404
-    return jsonify(latest_entry.to_dict()), 200
+        return jsonify({
+            "message": "No sensor data found yet",
+            "temperature": None,
+            "humidity": None,
+            "pressure": None,
+            "devices_online": active_devices
+        }), 200
+
+    data = latest_entry.to_dict()
+    data["devices_online"] = active_devices
+    return jsonify(data), 200
 
 
-# -------------------------------
-# 🔹 Get historical data (filter by device, time, limit, offset)
-# -------------------------------
+# ==========================================================
+# 🔹 Get historical data (with filters)
+# ==========================================================
 @data_bp.route("/data/history", methods=["GET"])
 def get_history():
     """
@@ -68,29 +92,43 @@ def get_history():
 
     rows = q.order_by(Sensor.timestamp.asc()).offset(offset).limit(limit).all()
     if not rows:
-        return jsonify({"message": "No data found"}), 404
+        return jsonify([]), 200  # ✅ Return empty list, not 404
 
     return jsonify([r.to_dict() for r in rows]), 200
 
 
-# -------------------------------
+# ==========================================================
 # 🔹 Get latest reading for a specific device
-# -------------------------------
+# ==========================================================
 @data_bp.route("/data/device/<int:device_id>/latest", methods=["GET"])
 def get_latest_for_device(device_id):
     """
     Returns the latest sensor reading for a specific device.
     """
+    device = Device.query.get(device_id)
+    if not device:
+        return jsonify({"error": "Device not found"}), 404
+
     row = Sensor.query.filter_by(device_id=device_id).order_by(Sensor.timestamp.desc()).first()
     if not row:
-        return jsonify({"message": "No data found for this device"}), 404
+        return jsonify({
+            "message": "No data found for this device",
+            "temperature": None,
+            "humidity": None,
+            "pressure": None,
+            "device_name": device.name,
+            "status": device.status
+        }), 200
 
-    return jsonify(row.to_dict()), 200
+    data = row.to_dict()
+    data["device_name"] = device.name
+    data["status"] = device.status
+    return jsonify(data), 200
 
 
-# -------------------------------
-# 🔹 Add new sensor reading (emits dashboard update)
-# -------------------------------
+# ==========================================================
+# 🔹 Add new sensor reading manually
+# ==========================================================
 @data_bp.route("/data", methods=["POST"])
 def add_sensor_data():
     """
@@ -116,7 +154,7 @@ def add_sensor_data():
         temperature=data.get("temperature"),
         humidity=data.get("humidity"),
         pressure=data.get("pressure"),
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     )
 
     try:
@@ -126,7 +164,7 @@ def add_sensor_data():
         db.session.rollback()
         return jsonify({"error": f"Failed to add sensor data: {e}"}), 500
 
-    # Emit dashboard update for real-time metrics
+    # Emit dashboard update
     emit_dashboard_update()
 
     return jsonify({"message": "Sensor data added", "sensor": sensor.to_dict()}), 201

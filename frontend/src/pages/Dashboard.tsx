@@ -146,7 +146,9 @@ const CircularGauge: React.FC<CircularGaugeProps> = ({
           dominantBaseline="middle"
           className="rotate-90 text-white text-lg font-semibold"
         >
-          {value ? `${Math.round(value)}${unit || ""}` : `${Math.round(actualValue)}%`}
+          {value
+            ? `${Math.round(value)}${unit || ""}`
+            : `${Math.round(actualValue)}%`}
         </text>
       </svg>
       <p className="mt-3 text-sm text-gray-300">{label}</p>
@@ -207,29 +209,35 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
-    const socket = io("http://127.0.0.1:5000"); // ✅ Flask Socket.IO backend
+    const socket = io("http://127.0.0.1:5000"); // ✅ Flask backend
 
     socket.on("connect", () => {
       console.log("[Socket] ✅ Connected to backend");
     });
 
-    // Listen for dashboard updates
+    // ✅ Correct event listener for real-time updates
     socket.on("dashboard_update", (data) => {
       console.log("[Socket] 📊 Dashboard update:", data);
-      setTemperature(data.temperature);
-      setHumidity(data.humidity);
-      setPressure(data.pressure);
-      setDevicesOnline(data.devices_online);
 
-      // Append to chart
+      // Defensive checks for missing keys
+      setTemperature(data?.temperature ?? 0);
+      setHumidity(data?.humidity ?? 0);
+      setPressure(data?.pressure ?? 0);
+      setDevicesOnline(data?.devices_online ?? data?.devicesOnline ?? 0); // ✅ supports both key styles
+
+      // Append to chart (limit 20 points)
       setChartData((prev) => [
-        ...prev.slice(-20),
+        ...prev.slice(-19),
         {
           timestamp: new Date().toLocaleTimeString(),
-          temperature: data.temperature,
-          humidity: data.humidity,
+          temperature: data?.temperature ?? 0,
+          humidity: data?.humidity ?? 0,
         },
       ]);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("[Socket] ❌ Disconnected from backend");
     });
 
     return () => {
@@ -244,7 +252,9 @@ export default function Dashboard() {
         <main className="flex-1 p-6 overflow-y-auto space-y-8">
           {/* HEADER */}
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-white">Dashboard Overview</h1>
+            <h1 className="text-2xl font-semibold text-white">
+              Dashboard Overview
+            </h1>
             <span className="text-sm text-gray-400">
               {new Date().toLocaleDateString()}
             </span>

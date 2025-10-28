@@ -10,3 +10,5 @@ eventlet>=0.33.0
 fasteners>=0.18
 Flask-Migrate>=4.0
 python-dateutil
+eventlet
+greenlet
