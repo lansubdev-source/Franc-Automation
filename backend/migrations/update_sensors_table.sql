@@ -1,0 +1,3 @@
+-- Example: update sensor default values
+-- Adapt based on your PostgreSQL migration logic
+--ALTER TABLE sensors ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;

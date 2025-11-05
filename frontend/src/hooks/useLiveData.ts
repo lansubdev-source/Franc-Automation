@@ -1,119 +1,196 @@
+"use client";
 import { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
 
-interface SensorData {
+// -------------------------------
+// Types
+// -------------------------------
+export interface SensorData {
+  device_name?: string;
   temperature: number | null;
   humidity: number | null;
   pressure: number | null;
+  status?: "online" | "offline" | "warning";
   timestamp: string;
+  deviceConnected?: boolean;
+  isConnected?: boolean;
+  devicesOnline?: number;
+  device_id?: string;
 }
 
+// -------------------------------
+// Time formatting (India time)
+// -------------------------------
+function formatIndiaTime(value?: string | number | Date): string {
+  if (!value) return "--";
+  const date = new Date(value);
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
+// -------------------------------
+// useLiveData Hook
+// -------------------------------
 export function useLiveData() {
   const [currentData, setCurrentData] = useState<SensorData>({
-    temperature: 0,
-    humidity: 0,
-    pressure: 1013,
+    temperature: null,
+    humidity: null,
+    pressure: null,
     timestamp: "--",
+    status: "offline",
+    deviceConnected: false,
   });
 
   const [chartData, setChartData] = useState<SensorData[]>([]);
   const [tableData, setTableData] = useState<SensorData[]>([]);
+  const [connected, setConnected] = useState(false);
+  const [isDeviceConnected, setIsDeviceConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
-  // 🔹 Load initial sensor data from backend REST API
+  // -------------------------------
+  // 🔁 Load and refresh latest data every 2 seconds
+  // -------------------------------
   useEffect(() => {
-    const loadInitial = async () => {
+    const loadLatest = async () => {
       try {
         const res = await fetch(`${API}/api/data/latest`);
         const latest = await res.json();
 
-        if (latest && typeof latest === "object" && latest.temperature !== undefined) {
-          const formatted = {
+        if (latest && latest.temperature !== undefined) {
+          const formatted: SensorData = {
             ...latest,
-            timestamp: latest.timestamp || new Date().toLocaleTimeString(),
+            device_name: latest.device_name || "Test device",
+            timestamp: formatIndiaTime(latest.timestamp || new Date()),
+            status: latest.status || "online",
+            deviceConnected: true,
+            isConnected: true,
+            devicesOnline: latest.devices_online || 1,
           };
           setCurrentData(formatted);
-          setChartData([formatted]);
-          setTableData([formatted]);
-        } else {
-          console.log("[useLiveData] No initial data found");
+          setChartData((prev) => [...prev.slice(-49), formatted]);
+          setTableData((prev) => [formatted, ...prev.slice(0, 19)]);
+          setIsDeviceConnected(true);
         }
       } catch (err) {
-        console.error("[useLiveData] ❌ Failed to fetch initial data:", err);
+        console.error("[useLiveData] ❌ Failed to fetch latest data:", err);
       }
     };
 
-    loadInitial();
+    loadLatest(); // initial
+    const interval = setInterval(loadLatest, 2000); // refresh every 2s
+    return () => clearInterval(interval);
   }, []);
 
-  // 🔹 Connect to Flask-SocketIO for real-time dashboard updates
+  // -------------------------------
+  // 🔌 Real-time updates via Socket.IO
+  // -------------------------------
   useEffect(() => {
-    socketRef.current = io(API, {
-      transports: ["websocket", "polling"], // ✅ allow both for Docker compatibility
+    const socket = io(API, {
+      transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
     });
 
-    socketRef.current.on("connect", () => {
-      console.log("[Socket.IO] ✅ Connected:", socketRef.current?.id);
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("[Socket.IO] ✅ Connected to backend");
+      setConnected(true);
     });
 
-    socketRef.current.on("disconnect", (reason) => {
+    socket.on("disconnect", (reason) => {
       console.warn("[Socket.IO] ⚠️ Disconnected:", reason);
+      setConnected(false);
+      setIsDeviceConnected(false);
     });
 
-    socketRef.current.on("connect_error", (err) => {
+    socket.on("connect_error", (err) => {
       console.error("[Socket.IO] ❌ Connection error:", err.message);
+      setConnected(false);
     });
 
-    // 🔍 Debug log all incoming events
-    socketRef.current.onAny((event, data) => {
-      console.log(`[Socket.IO] Event: ${event}`, data);
-    });
-
-    // ✅ Listen for dashboard updates
-    socketRef.current.on("dashboard_update", (data: SensorData) => {
-      console.log("[Socket.IO] 📊 Dashboard update received:", data);
-
-      // Handle cleared state (no connected device)
-      if (
-        !data ||
-        Object.keys(data).length === 0 ||
-        data.temperature === null ||
-        data.temperature === undefined
-      ) {
-        console.log("[Socket.IO] 🧊 No device connected — clearing dashboard");
-        setCurrentData({
-          temperature: 0,
-          humidity: 0,
-          pressure: 1013,
-          timestamp: "--",
-        });
-        setChartData([]);
-        setTableData([]);
-        return;
-      }
-
-      // Format and append new data
-      const formatted = {
-        ...data,
-        timestamp: data.timestamp || new Date().toLocaleTimeString(),
+    // ✅ Sensor Data Event
+    socket.on("sensor_data", (data: any) => {
+      if (!data) return;
+      const formatted: SensorData = {
+        device_name: data.device_name || "Test device",
+        temperature: data.temperature ?? null,
+        humidity: data.humidity ?? null,
+        pressure: data.pressure ?? null,
+        status: data.status || "online",
+        timestamp: formatIndiaTime(new Date()),
+        deviceConnected: true,
+        isConnected: true,
+        devicesOnline: data.devices_online || 1,
+        device_id: data.device_id,
       };
 
+      setIsDeviceConnected(true);
       setCurrentData(formatted);
-      setChartData((prev) => [...prev.slice(-49), formatted]); // keep last 50
-      setTableData((prev) => [formatted, ...prev.slice(0, 19)]); // keep last 20
+      setChartData((prev) => [...prev.slice(-49), formatted]);
+      setTableData((prev) => [formatted, ...prev.slice(0, 19)]);
     });
 
-    // ✅ Cleanup socket on unmount
+    // ✅ Dashboard Data Event
+    socket.on("dashboard_update", (data: any) => {
+      if (!data) return;
+      const formatted: SensorData = {
+        device_name: data.device_name || "Test device",
+        temperature: data.temperature ?? null,
+        humidity: data.humidity ?? null,
+        pressure: data.pressure ?? null,
+        status: data.status || "online",
+        timestamp: formatIndiaTime(data.timestamp || new Date()),
+        deviceConnected: true,
+        isConnected: true,
+        devicesOnline: data.devices_online || 1,
+        device_id: data.device_id,
+      };
+
+      setIsDeviceConnected(true);
+      setCurrentData(formatted);
+      setChartData((prev) => [...prev.slice(-49), formatted]);
+      setTableData((prev) => [formatted, ...prev.slice(0, 19)]);
+    });
+
+    // ✅ MQTT Status Event
+    socket.on("mqtt_status", (data: any) => {
+      console.log("[Socket.IO] 🌐 MQTT Status:", data);
+      if (data?.status === "connected") {
+        setConnected(true);
+        setIsDeviceConnected(true);
+      } else {
+        setConnected(false);
+        setIsDeviceConnected(false);
+      }
+    });
+
+    // Cleanup
     return () => {
-      socketRef.current?.disconnect();
+      socket.disconnect();
       console.log("[Socket.IO] 🔌 Disconnected cleanly");
     };
   }, []);
 
-  return { currentData, chartData, tableData };
+  // -------------------------------
+  // Return hook data
+  // -------------------------------
+  return {
+    currentData,
+    chartData,
+    tableData,
+    connected,
+    isDeviceConnected,
+  };
 }

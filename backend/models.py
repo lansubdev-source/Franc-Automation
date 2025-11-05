@@ -50,10 +50,10 @@ class User(db.Model):
             "id": self.id,
             "username": self.username,
             "email": self.email,
-            "roles": [role.name for role in self.roles],
-            "devices": [device.name for device in self.devices],
+            "roles": [r.name for r in self.roles],
+            "devices": [d.name for d in self.devices],
             "is_active": self.is_active,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
 
 # ==========================================================
@@ -70,7 +70,7 @@ class Role(db.Model):
     permissions = db.relationship(
         "Permission",
         secondary=role_permissions,
-        backref=db.backref("roles", lazy="dynamic")
+        backref=db.backref("roles", lazy="dynamic"),
     )
 
     def to_dict(self):
@@ -79,7 +79,7 @@ class Role(db.Model):
             "name": self.name,
             "description": self.description,
             "permissions": [p.name for p in self.permissions],
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
         }
 
 # ==========================================================
@@ -93,11 +93,7 @@ class Permission(db.Model):
     description = db.Column(db.String(255))
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description
-        }
+        return {"id": self.id, "name": self.name, "description": self.description}
 
 # ==========================================================
 # Device Model
@@ -118,15 +114,22 @@ class Device(db.Model):
     auto_reconnect = db.Column(db.Boolean)
     reconnect_period = db.Column(db.Integer)
     status = db.Column(db.String(20), default="offline")
+    enable_tls = db.Column(db.Boolean, default=False)
+    is_connected = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # ✅ Fix: Add last_seen column
+    last_seen = db.Column(db.DateTime, nullable=True)
 
     sensors = db.relationship("Sensor", backref="device", lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
             "id": self.id,
+            "device_id": self.id,
             "name": self.name,
+            "device_name": self.name,
             "protocol": self.protocol,
             "host": self.host,
             "port": self.port,
@@ -137,24 +140,27 @@ class Device(db.Model):
             "auto_reconnect": self.auto_reconnect,
             "reconnect_period": self.reconnect_period,
             "status": self.status,
+            "enable_tls": self.enable_tls,
+            "is_connected": self.is_connected,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "last_seen": self.last_seen.isoformat() if self.last_seen else None,  # ✅ Safely handle missing value
         }
 
 # ==========================================================
-# Sensor Model (with live MQTT fields)
+# Sensor Model (for MQTT & dashboard)
 # ==========================================================
 class Sensor(db.Model):
     __tablename__ = "sensors"
     __table_args__ = {"extend_existing": True}
 
     id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.Integer, db.ForeignKey('devices.id'), nullable=False)
+    device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=False)
     topic = db.Column(db.String(255))
     payload = db.Column(db.Text)
-    temperature = db.Column(db.Float, nullable=True)
-    humidity = db.Column(db.Float, nullable=True)
-    pressure = db.Column(db.Float, nullable=True)
+    temperature = db.Column(db.Float)
+    humidity = db.Column(db.Float)
+    pressure = db.Column(db.Float)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -166,7 +172,7 @@ class Sensor(db.Model):
             "temperature": self.temperature,
             "humidity": self.humidity,
             "pressure": self.pressure,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 # ==========================================================

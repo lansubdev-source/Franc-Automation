@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import Sidebar from "@/components/dashboard/Sidebar";
 import {
   LineChart,
   Line,
@@ -13,14 +12,14 @@ import {
   Legend,
 } from "recharts";
 
+const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
+
 // ---------------- METRIC CARD ----------------
 interface MetricCardProps {
   title: string;
   value: string | number;
   unit?: string;
   icon: React.ReactNode;
-  trend?: "up" | "down" | "stable";
-  trendValue?: string;
   status?: "good" | "warning" | "critical";
   color?: string;
 }
@@ -30,8 +29,6 @@ const MetricCard: React.FC<MetricCardProps> = ({
   value,
   unit,
   icon,
-  trend,
-  trendValue,
   status = "good",
   color,
 }) => {
@@ -45,7 +42,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
     <div
       className={`p-5 rounded-2xl shadow-md bg-gradient-to-br ${
         color || "from-slate-700 to-slate-900"
-      } text-white`}
+      } text-white transition-all duration-500`}
     >
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm uppercase tracking-wide text-gray-100">
@@ -57,22 +54,6 @@ const MetricCard: React.FC<MetricCardProps> = ({
         {value}
         {unit && <span className="text-lg font-medium ml-1">{unit}</span>}
       </h2>
-      {trendValue && (
-        <p
-          className={`text-sm mt-1 ${
-            trend === "up"
-              ? "text-green-400"
-              : trend === "down"
-              ? "text-red-400"
-              : "text-gray-300"
-          }`}
-        >
-          {trend === "up" && "▲ "}
-          {trend === "down" && "▼ "}
-          {trend === "stable" && "▬ "}
-          {trendValue}
-        </p>
-      )}
       <p className={`text-xs mt-2 ${statusColors[status]}`}>
         Status: {status.toUpperCase()}
       </p>
@@ -94,7 +75,7 @@ interface CircularGaugeProps {
 
 const CircularGauge: React.FC<CircularGaugeProps> = ({
   title,
-  value,
+  value = 0,
   min = 0,
   max = 100,
   unit,
@@ -102,15 +83,19 @@ const CircularGauge: React.FC<CircularGaugeProps> = ({
   percentage,
   label,
 }) => {
-  const actualValue = percentage ?? ((value! - min) / (max - min)) * 100;
+  const computedPercentage =
+    percentage !== undefined
+      ? Math.min(100, Math.max(0, percentage))
+      : Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (actualValue / 100) * circumference;
+  const offset = circumference - (computedPercentage / 100) * circumference;
 
   const gaugeColor =
-    value && value >= thresholds.critical
+    value >= thresholds.critical
       ? "#ef4444"
-      : value && value >= thresholds.warning
+      : value >= thresholds.warning
       ? "#facc15"
       : "#3b82f6";
 
@@ -138,20 +123,29 @@ const CircularGauge: React.FC<CircularGaugeProps> = ({
           strokeDashoffset={offset}
           strokeLinecap="round"
           fill="none"
+          style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.5s ease" }}
         />
         <text
           x="60"
-          y="60"
+          y="55"
           textAnchor="middle"
           dominantBaseline="middle"
-          className="rotate-90 text-white text-lg font-semibold"
+          className="rotate-90 text-white text-xl font-bold"
         >
-          {value
-            ? `${Math.round(value)}${unit || ""}`
-            : `${Math.round(actualValue)}%`}
+          {Math.round(value)}
+          {unit || ""}
+        </text>
+        <text
+          x="60"
+          y="75"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="rotate-90 text-gray-400 text-xs"
+        >
+          {Math.round(computedPercentage)}%
         </text>
       </svg>
-      <p className="mt-3 text-sm text-gray-300">{label}</p>
+      {label && <p className="mt-3 text-sm text-gray-300">{label}</p>}
     </div>
   );
 };
@@ -160,7 +154,6 @@ const CircularGauge: React.FC<CircularGaugeProps> = ({
 interface RealtimeChartProps {
   title?: string;
   data: any[];
-  lines?: { key: string; color: string; name: string }[];
 }
 
 const RealtimeChart: React.FC<RealtimeChartProps> = ({ data }) => (
@@ -202,45 +195,76 @@ const RealtimeChart: React.FC<RealtimeChartProps> = ({ data }) => (
 
 // ---------------- MAIN DASHBOARD ----------------
 export default function Dashboard() {
-  const [temperature, setTemperature] = useState<number>(0);
-  const [humidity, setHumidity] = useState<number>(0);
-  const [pressure, setPressure] = useState<number>(0);
-  const [devicesOnline, setDevicesOnline] = useState<number>(0);
+  const [temperature, setTemperature] = useState(0);
+  const [humidity, setHumidity] = useState(0);
+  const [pressure, setPressure] = useState(0);
+  const [devicesOnline, setDevicesOnline] = useState(0);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<string>("--");
+  const [connected, setConnected] = useState(false);
+  const [currentTime, setCurrentTime] = useState<string>("--");
 
   useEffect(() => {
-    const socket = io("http://127.0.0.1:5000"); // ✅ Flask backend
-
-    socket.on("connect", () => {
-      console.log("[Socket] ✅ Connected to backend");
+    const socket = io(API, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
     });
 
-    // ✅ Correct event listener for real-time updates
-    socket.on("dashboard_update", (data) => {
-      console.log("[Socket] 📊 Dashboard update:", data);
+    socket.on("connect", () => {
+      console.log("[Socket] ✅ Connected");
+      setConnected(true);
+    });
 
-      // Defensive checks for missing keys
+    socket.on("disconnect", () => {
+      console.log("[Socket] ❌ Disconnected");
+      setConnected(false);
+    });
+
+    // 🔥 Live socket stream
+    socket.on("dashboard_update", (data) => {
+      updateFromData(data);
+    });
+
+    // 🔁 Fallback polling every 2 seconds
+    const interval = setInterval(async () => {
+      setCurrentTime(
+        new Date().toLocaleTimeString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour12: true,
+        })
+      );
+      try {
+        const res = await fetch(`${API}/api/data/latest`);
+        const latest = await res.json();
+        if (latest?.temperature !== undefined) updateFromData(latest);
+      } catch (err) {
+        console.error("[Dashboard Polling Error]", err);
+      }
+    }, 2000);
+
+    const updateFromData = (data: any) => {
       setTemperature(data?.temperature ?? 0);
       setHumidity(data?.humidity ?? 0);
       setPressure(data?.pressure ?? 0);
-      setDevicesOnline(data?.devices_online ?? data?.devicesOnline ?? 0); // ✅ supports both key styles
-
-      // Append to chart (limit 20 points)
+      setDevicesOnline(data?.devices_online ?? data?.devicesOnline ?? 0);
+      setLastUpdate(
+        new Date().toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          hour12: true,
+        })
+      );
       setChartData((prev) => [
         ...prev.slice(-19),
         {
-          timestamp: new Date().toLocaleTimeString(),
+          timestamp: new Date().toLocaleTimeString("en-IN", { hour12: true }),
           temperature: data?.temperature ?? 0,
           humidity: data?.humidity ?? 0,
         },
       ]);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("[Socket] ❌ Disconnected from backend");
-    });
+    };
 
     return () => {
+      clearInterval(interval);
       socket.disconnect();
     };
   }, []);
@@ -248,33 +272,48 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="flex h-full bg-[#0d1117] text-white">
-        <Sidebar />
         <main className="flex-1 p-6 overflow-y-auto space-y-8">
-          {/* HEADER */}
+          {/* Header */}
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-white">
-              Dashboard Overview
-            </h1>
-            <span className="text-sm text-gray-400">
-              {new Date().toLocaleDateString()}
-            </span>
+            <div>
+              <h1 className="text-2xl font-semibold text-white">Dashboard Overview</h1>
+              <div className="flex items-center gap-3 text-sm mt-1">
+                {connected ? (
+                  <div className="flex items-center text-green-500 gap-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span>🟢 Connected</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center text-red-500 gap-1">
+                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span>🔴 Disconnected</span>
+                  </div>
+                )}
+                <span className="text-gray-500">|</span>
+                <span className="text-gray-400">{currentTime}</span>
+              </div>
+            </div>
+            <span className="text-sm text-gray-400">Last updated: {lastUpdate}</span>
           </div>
 
-          {/* METRIC CARDS */}
+          {/* Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
-              title="Air Temperature"
+              title="Temperature"
               value={temperature.toFixed(1)}
               unit="°C"
               icon="🌡️"
+              status={
+                temperature > 35 ? "critical" : temperature > 30 ? "warning" : "good"
+              }
               color="from-blue-500 to-blue-700"
-              status={temperature > 30 ? "critical" : "good"}
             />
             <MetricCard
               title="Humidity"
               value={humidity.toFixed(1)}
               unit="%"
               icon="💧"
+              status={humidity > 70 ? "warning" : "good"}
               color="from-teal-500 to-cyan-600"
             />
             <MetricCard
@@ -288,24 +327,22 @@ export default function Dashboard() {
               title="Devices Online"
               value={devicesOnline}
               icon="📡"
+              status={devicesOnline > 0 ? "good" : "critical"}
               color="from-green-500 to-emerald-700"
             />
           </div>
 
-          {/* CHART + GAUGES */}
+          {/* Chart + Gauges */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
             <div className="lg:col-span-2">
               <RealtimeChart data={chartData} />
             </div>
+
             <div className="bg-[#161b22] p-5 rounded-2xl shadow-md flex flex-col items-center justify-center">
-              <h3 className="text-white text-lg font-semibold mb-4">
-                System Performance
-              </h3>
-              <div className="grid grid-cols-2 gap-8">
-                <CircularGauge percentage={78} label="CPU Usage" />
-                <CircularGauge percentage={64} label="Memory" />
-                <CircularGauge percentage={49} label="Network" />
-                <CircularGauge percentage={82} label="Storage" />
+              <h3 className="text-white text-lg font-semibold mb-4">Sensor Gauges</h3>
+              <div className="flex flex-col gap-8">
+                <CircularGauge title="Temperature" value={temperature} unit="°C" label="Current Temp" />
+                <CircularGauge title="Humidity" value={humidity} unit="%" label="Current Humidity" />
               </div>
             </div>
           </div>

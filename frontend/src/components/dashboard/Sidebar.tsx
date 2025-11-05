@@ -1,3 +1,4 @@
+"use client";
 import {
   Activity,
   BarChart3,
@@ -9,46 +10,52 @@ import {
   Radar,
   LayoutDashboard,
   FolderKanban,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Link, useLocation } from 'react-router-dom';
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Link, useLocation } from "react-router-dom";
 
+// ------------------------------
+// Sidebar Sections
+// ------------------------------
 const sections = [
   {
-    title: 'Dashboard',
+    title: "Dashboard",
     items: [
-      { name: 'Dashboard', icon: BarChart3, path: '/dashboard' },
-      { name: 'Dashboard Builder', icon: LayoutDashboard, path: '/dashboard-builder' },
-      { name: 'Dashboards', icon: FolderKanban, path: '/dashboards' },
+      { name: "Dashboard", icon: BarChart3, path: "/dashboard" },
+      { name: "Dashboard Builder", icon: LayoutDashboard, path: "/dashboard-builder" },
+      { name: "Dashboards", icon: FolderKanban, path: "/dashboards" },
     ],
   },
   {
-    title: 'Data Monitoring',
+    title: "Data Monitoring",
     items: [
-      { name: 'Live Data', icon: Activity, path: '/live' },
-      { name: 'History', icon: Database, path: '/history' },
+      { name: "Live Data", icon: Activity, path: "/live" },
+      { name: "History", icon: Database, path: "/history" },
     ],
   },
   {
-    title: 'Device Management',
+    title: "Device Management",
     items: [
-      { name: 'Devices', icon: Wifi, path: '/devices' },
-      { name: 'Sensors', icon: Radar, path: '/sensors' },
+      { name: "Devices", icon: Wifi, path: "/devices" },
+      { name: "Sensors", icon: Radar, path: "/sensors" },
     ],
   },
   {
-    title: 'Users & Roles',
+    title: "Users & Roles",
     items: [
-      { name: 'User Management', icon: Users, path: '/users' },
-      { name: 'Role Management', icon: ShieldCheck, path: '/roles' },
+      { name: "User Management", icon: Users, path: "/users" },
+      { name: "Role Management", icon: ShieldCheck, path: "/roles" },
     ],
   },
   {
-    title: 'Administration',
-    items: [{ name: 'Settings', icon: Settings, path: '/settings' }],
+    title: "Administration",
+    items: [{ name: "Settings", icon: Settings, path: "/settings" }],
   },
 ];
 
+// ------------------------------
+// Main Sidebar Component
+// ------------------------------
 export default function Sidebar() {
   const location = useLocation();
 
@@ -61,7 +68,7 @@ export default function Sidebar() {
             <Activity className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold text-white">IoT Dashboard</h1>
+            <h1 className="text-lg font-semibold text-white">Franc Automation</h1>
             <p className="text-xs text-gray-400">Real-time Monitoring</p>
           </div>
         </div>
@@ -83,10 +90,10 @@ export default function Sidebar() {
                     <Link
                       to={item.path}
                       className={cn(
-                        'group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                        "group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
                         isActive
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "text-gray-400 hover:text-white hover:bg-gray-800"
                       )}
                     >
                       <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
@@ -99,17 +106,6 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
-
-      {/* MQTT Status */}
-      <div className="p-4 border-t border-gray-800">
-        <div className="bg-[#161b22] rounded-lg p-4 border border-gray-700">
-          <div className="flex items-center space-x-2 mb-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-200">MQTT Status</span>
-          </div>
-          <p className="text-xs text-gray-400">Connected to broker</p>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,0 +1,1 @@
+--ALTER TABLE dashboards ADD COLUMN is_template INTEGER DEFAULT 0; -- 0=false, 1=true

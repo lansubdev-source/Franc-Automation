@@ -9,10 +9,10 @@ from flask_socketio import SocketIO
 # ==========================================================
 db = SQLAlchemy()
 
-# ✅ Use threading mode for compatibility with Flask debug + background emits
+# ✅ Use eventlet mode since app.py runs under eventlet.wsgi.server
 socketio = SocketIO(
     cors_allowed_origins="*",
-    async_mode="threading",
+    async_mode="eventlet",
     ping_interval=25,
-    ping_timeout=60
+    ping_timeout=60,
 )

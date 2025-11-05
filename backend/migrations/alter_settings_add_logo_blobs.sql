@@ -1,0 +1,2 @@
+--ALTER TABLE settings ADD COLUMN logo_main BLOB;
+--ALTER TABLE settings ADD COLUMN logo_alt BLOB;

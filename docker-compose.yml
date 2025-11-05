@@ -2,6 +2,7 @@ services:
   francauto:
     build: .
     container_name: francauto-app
+    command: python -m backend.app   # 👈 ADD THIS LINE
     ports:
       - "5000:5000"  # Flask backend
     volumes:

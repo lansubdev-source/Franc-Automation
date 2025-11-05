@@ -10,7 +10,7 @@ import NotFound from "@/pages/NotFound";
 import RoleManagement from "@/pages/RoleManagement";
 import UserManagement from "@/pages/UserManagement";
 import Sensors from "@/pages/Sensors";
-import { DataTable } from "@/pages/DataTable";
+import LiveDataPage from "@/pages/LiveDataPage";
 import DashboardBuilder from "@/pages/DashboardBuilder";
 import Dashboards from "@/pages/Dashboards";
 import  DashboardPage  from "@/pages/DashboardPage";
@@ -34,7 +34,7 @@ const App = () => (
           <Route path="/settings" element={<Settings />} />
           <Route path="/roles" element={<RoleManagement />} />
           <Route path="/users" element={<UserManagement />} />
-          <Route path="/live" element={<DataTable title="Recent Device Activity" data={tableData} />} />
+          <Route path="/live" element={<LiveDataPage />} />
           <Route path="/dashboard-builder" element={<DashboardBuilder />} />
           <Route path="/dashboards" element={<Dashboards />} />
           {/* Add more routes like live-data, history later */}

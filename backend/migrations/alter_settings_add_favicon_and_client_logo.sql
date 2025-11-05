@@ -1,0 +1,2 @@
+--ALTER TABLE settings ADD COLUMN favicon BLOB;
+--ALTER TABLE settings ADD COLUMN client_logo BLOB;

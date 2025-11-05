@@ -1,0 +1,3 @@
+-- Delete sensors with no matching device
+--DELETE FROM sensors
+--WHERE device_id NOT IN (SELECT id FROM devices);

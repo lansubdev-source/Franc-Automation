@@ -1,8 +1,8 @@
 # ==========================================================
 # Must patch BEFORE any Flask/threading/db imports
 # ==========================================================
-import eventlet
-eventlet.monkey_patch()
+#import eventlet
+#eventlet.monkey_patch()
 
 import os
 import threading
@@ -15,7 +15,9 @@ from flask_migrate import Migrate
 from backend.extensions import db, socketio
 from backend.utils.audit import log_info
 from backend.models import *
-from backend.mqtt_service import start_device_mqtt
+# ✅ Manual MQTT control only
+from backend.mqtt_service import start_mqtt_client, stop_mqtt_client
+from backend.mqtt_service import init_mqtt_system
 
 # ==========================================================
 # Inter-process file lock for MQTT
@@ -24,6 +26,7 @@ try:
     import msvcrt  # Windows
 except ImportError:
     import fcntl  # Unix
+
 
 class InterProcessLock:
     def __init__(self, path):
@@ -71,6 +74,7 @@ class InterProcessLock:
     def __exit__(self, exc_type, exc, tb):
         self.release()
 
+
 # ==========================================================
 # Flask App Factory
 # ==========================================================
@@ -92,8 +96,6 @@ def create_app():
     CORS(app, resources={r"/api/*": {"origins": "*"}})
     db.init_app(app)
     Migrate(app, db)
-
-    # ✅ Use Eventlet for async socket handling
     socketio.init_app(app, cors_allowed_origins="*", async_mode="eventlet")
 
     # ==========================================================
@@ -140,6 +142,7 @@ def create_app():
 # Auto-Migration Helper
 # ==========================================================
 def auto_migrate():
+    """Automatically apply migrations for SQLite"""
     try:
         log_info("[MIGRATION] Checking migrations...")
         subprocess.run(["flask", "db", "migrate", "-m", "auto migration"], check=False)
@@ -150,59 +153,39 @@ def auto_migrate():
 
 
 # ==========================================================
-# MQTT Initialization for All Devices
-# ==========================================================
-def start_all_devices(app):
-    with app.app_context():
-        from backend.models import Device
-        devices = Device.query.all()
-        if not devices:
-            log_info("[MQTT] ⚠️ No devices found in database.")
-            return
-        for d in devices:
-            try:
-                start_device_mqtt(d)
-                log_info(f"[MQTT] 🔄 Reconnected device '{d.name}' ({d.host}:{d.port})")
-            except Exception as e:
-                log_info(f"[MQTT] ⚠️ Failed to start device '{d.name}': {e}")
-
-
-# ==========================================================
-# Background Thread for MQTT
+# MQTT Initialization (Manual Only)
 # ==========================================================
 def run_mqtt_thread(app):
+    """Only prepares context; no auto device connection"""
     with app.app_context():
-        log_info("[MQTT] Starting dynamic MQTT connections for all devices...")
-        start_all_devices(app)
-        log_info("[MQTT] All device MQTT clients started.")
+        log_info("[MQTT] Thread ready — devices must be connected manually via API.")
 
 
 # ==========================================================
 # Main Entry
 # ==========================================================
 if __name__ == "__main__":
-    import eventlet
     import eventlet.wsgi
 
     app = create_app()
 
     with app.app_context():
         auto_migrate()
+        init_mqtt_system()
 
+    # Prevent duplicate MQTT threads
     lock_path = os.path.join(tempfile.gettempdir(), "mqtt_init.lock")
     mqtt_lock = InterProcessLock(lock_path)
 
     if mqtt_lock.acquire(blocking=False):
-        log_info("[INIT] MQTT thread starting globally for all devices...")
+        log_info("[INIT] MQTT thread started (manual mode, no auto-connect)...")
         mqtt_thread = threading.Thread(target=run_mqtt_thread, args=(app,), daemon=True)
         mqtt_thread.start()
     else:
-        log_info("[SKIP] MQTT already running in another process.")
+        log_info("[SKIP] MQTT thread already active in another process.")
 
     log_info("🚀 Franc Automation Backend + Frontend running with Eventlet at http://0.0.0.0:5000")
 
-    # ✅ Use Eventlet WSGI server instead of Werkzeug
-    eventlet.monkey_patch()
     socketio.run(
         app,
         host="0.0.0.0",

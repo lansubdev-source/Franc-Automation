@@ -1,0 +1,7 @@
+--CREATE TABLE received_messages (
+ --   id INTEGER PRIMARY KEY AUTOINCREMENT,
+ --   device_id INTEGER,
+ --   topic TEXT,
+ --   payload TEXT,
+ --   received_at TEXT DEFAULT CURRENT_TIMESTAMP
+--);

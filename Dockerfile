@@ -54,8 +54,6 @@ ENV FLASK_APP=backend.app
 ENV FLASK_RUN_HOST=0.0.0.0
 ENV FLASK_ENV=production
 
-# --- Optional: Auto-initialize migrations if missing ---
-RUN mkdir -p /app/backend/migrations || true
-
-# ✅ Start Flask backend (serves API + built frontend)
-CMD ["python", "-u", "backend/app.py"]
+# ✅ PRELOAD EVENTLET before Flask starts
+# This ensures eventlet.monkey_patch() happens before imports
+CMD ["python", "-c", "import eventlet; eventlet.monkey_patch(all=True); import backend.app"]

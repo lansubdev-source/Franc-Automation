@@ -20,6 +20,17 @@ export const api = {
     return res.json();
   },
 
+  // 🔹 Update an existing device
+  async updateDevice(id: number | string, data: any) {
+    const res = await fetch(`${API_BASE}/devices/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to update device");
+    return res.json();
+  },
+
   // 🔹 Delete a device
   async deleteDevice(id: number | string) {
     const res = await fetch(`${API_BASE}/devices/${id}`, {
