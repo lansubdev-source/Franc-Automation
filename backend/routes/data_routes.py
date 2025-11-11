@@ -101,3 +101,39 @@ def emit_data_update():
     emit_dashboard_update()
     emit_global_mqtt_status()
     return jsonify({"message": "Dashboard update emitted"}), 200
+
+# ==========================================================
+# New Route: Get all sensor data in JSON format
+# ==========================================================
+from flask import Blueprint, jsonify
+from backend.models import Sensor
+from backend.extensions import db
+
+data_bp = Blueprint("data_bp", __name__)
+
+@data_bp.route("/api/data/all", methods=["GET"])
+def get_all_sensor_data():
+    sensors = Sensor.query.order_by(Sensor.id.desc()).limit(100).all()  # limit to 100 for performance
+    return jsonify([s.to_dict() for s in sensors])
+
+# ==========================================================
+# New Route: Get all sensor data in JSON format
+# ==========================================================
+@data_bp.route("/api/data/history", methods=["GET"])
+def get_history():
+    """Return last 7 days of sensor data grouped by date"""
+    now = datetime.utcnow()
+    start = now - timedelta(days=7)
+
+    sensors = (
+        Sensor.query.filter(Sensor.timestamp >= start)
+        .order_by(Sensor.timestamp.desc())
+        .all()
+    )
+
+    grouped = {}
+    for s in sensors:
+        date_key = s.timestamp.strftime("%Y-%m-%d")
+        grouped.setdefault(date_key, []).append(s.to_dict())
+
+    return jsonify(grouped)

@@ -137,6 +137,7 @@ def create_app():
     from backend.routes.user_routes import user_bp
     from backend.routes.role_routes import role_bp
     from backend.routes.dashboard_routes import dashboard_bp
+    from backend.routes.history_routes import history_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(device_bp, url_prefix="/api")
@@ -146,6 +147,7 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix="/api/users")
     app.register_blueprint(role_bp, url_prefix="/api/users")
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(history_bp)
 
     # ==========================================================
     # Serve React Frontend Build (production)
