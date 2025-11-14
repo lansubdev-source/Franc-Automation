@@ -41,12 +41,20 @@ class User(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
+
+    # NEW: Add role explicitly (even if you already use roles table)
+    role = db.Column(db.String(50), nullable=False, default="user")
+
+    email = db.Column(db.String(100), unique=True, nullable=True)
+
+    # CHANGE: your model used "password" — but auth_routes uses password_hash
+    password_hash = db.Column(db.String(255), nullable=False)
+
     image_url = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Old relationship system (optional)
     roles = db.relationship("Role", secondary=user_roles, backref="users")
     devices = db.relationship("Device", secondary=user_devices, backref="users")
 
@@ -54,8 +62,8 @@ class User(db.Model):
         return {
             "id": self.id,
             "username": self.username,
+            "role": self.role,               # NEW: important for permissions
             "email": self.email,
-            "roles": [r.name for r in self.roles],
             "devices": [d.name for d in self.devices],
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat(),
@@ -208,3 +216,56 @@ class Setting(db.Model):
 
     def to_dict(self):
         return {"key": self.key, "value": self.value}
+
+# ----------------------------------------------------------
+# Dashboard & Widget models
+# ----------------------------------------------------------
+class Dashboard(db.Model):
+    __tablename__ = "dashboards"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # JSON structure holding widget definitions and layout
+    layout = db.Column(JSON, default={})
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "layout": self.layout or {},
+        }
+
+
+class Widget(db.Model):
+    __tablename__ = "widgets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    dashboard_id = db.Column(db.Integer, db.ForeignKey("dashboards.id", ondelete="CASCADE"))
+    type = db.Column(db.String(80), nullable=False)  # e.g. 'temperature_chart'
+    title = db.Column(db.String(120))
+    device_id = db.Column(db.Integer, nullable=True)  # optional
+    sensor = db.Column(db.String(80), nullable=True)  # optional sensor key: 'temperature'/'humidity'/'pressure'
+    config = db.Column(JSON, default={})  # extra widget config JSON
+    order = db.Column(db.Integer, default=0)
+
+    dashboard = db.relationship("Dashboard", backref=db.backref("widgets", lazy="dynamic", cascade="all, delete-orphan"))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "dashboard_id": self.dashboard_id,
+            "type": self.type,
+            "title": self.title,
+            "device_id": self.device_id,
+            "sensor": self.sensor,
+            "config": self.config or {},
+            "order": self.order,
+        }

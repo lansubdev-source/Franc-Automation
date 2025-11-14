@@ -96,6 +96,7 @@ class InterProcessLock:
 # ==========================================================
 def create_app():
     app = Flask(__name__)
+    app.config["SECRET_KEY"] ="c460bdc876e1cd1bbd40bfb917091a2dfb1a010fd7eba3d6990fc77306e74560"
 
     # Instance folder for SQLite DB
     instance_path = os.path.join(app.root_path, "instance")
@@ -107,6 +108,17 @@ def create_app():
         "DATABASE_URL", f"sqlite:///{db_path}"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # ==========================================================
+    # JWT SETTINGS
+    # ==========================================================
+    app.config["JWT_SECRET_KEY"] = os.environ.get(
+        "JWT_SECRET_KEY",
+        "c460bdc876e1cd1bbd40bfb917091a2dfb1a010fd7eba3d6990fc77306e74560"  # your key
+    )
+    app.config["JWT_ALGORITHM"] = "HS256"
+    from datetime import timedelta
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=12)
+
 
     # CORS + Extensions
     CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -138,6 +150,7 @@ def create_app():
     from backend.routes.role_routes import role_bp
     from backend.routes.dashboard_routes import dashboard_bp
     from backend.routes.history_routes import history_bp
+    from backend.routes.dashboardbuilder_routes import dashboardbuilder_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(device_bp, url_prefix="/api")
@@ -148,6 +161,7 @@ def create_app():
     app.register_blueprint(role_bp, url_prefix="/api/users")
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(history_bp)
+    app.register_blueprint(dashboardbuilder_bp, url_prefix="/api/dashboardbuilder")
 
     # ==========================================================
     # Serve React Frontend Build (production)

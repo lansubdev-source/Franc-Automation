@@ -1,232 +1,157 @@
 "use client";
-import React, { useState } from "react";
-import { motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { motion } from "framer-motion";
+import { Loader2, Lock, PlusCircle, Cpu, Thermometer, Gauge, Wind } from "lucide-react";
 
 const DashboardBuilder: React.FC = () => {
-  const [widgetType, setWidgetType] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [allowedWidgets, setAllowedWidgets] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const [addedWidgets, setAddedWidgets] = useState<any[]>([]);
+
+  // Fetch allowed widget list from backend
+  const fetchPermissions = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("Unauthorized");
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch("/api/dashboard/builder/widgets", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Permission error");
+        setLoading(false);
+        return;
+      }
+
+      setAllowedWidgets(data.widgets);
+      setLoading(false);
+    } catch (err) {
+      setError("Server error");
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPermissions();
+  }, []);
+
+  const addWidget = (type: string) => {
+    setAddedWidgets((prev) => [...prev, { type }]);
+  };
+
+  const widgetIcons: any = {
+    temperature: <Thermometer className="w-6 h-6 text-red-400" />,
+    humidity: <Wind className="w-6 h-6 text-blue-400" />,
+    pressure: <Gauge className="w-6 h-6 text-purple-400" />,
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center h-screen text-gray-300">
+          <Loader2 className="animate-spin w-10 h-10" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="text-center mt-20 text-red-400 text-xl flex flex-col items-center">
+          <Lock className="w-12 h-12 mb-3 opacity-70" />
+          {error}
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout>  
-   <div className="p-6 text-gray-200 bg-gray-900 min-h-screen">
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold flex items-center mb-2">
-          <i className="bi bi-layout-text-window-reverse text-blue-500 mr-2"></i>{" "}
+    <DashboardLayout>
+      <div className="p-6 text-gray-200 bg-gray-900 min-h-screen">
+
+        {/* Header */}
+        <motion.h2
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-3xl font-bold text-white mb-8"
+        >
           Dashboard Builder
-        </h2>
-        <p className="text-gray-400">
-          Create and customize IoT dashboards with drag-and-drop widgets. Assign
-          dashboards to users and devices for real-time monitoring.
-        </p>
-      </div>
+        </motion.h2>
 
-      {/* Dashboard Info Card */}
-      <div className="bg-gray-800 shadow-md rounded-lg mb-6 border border-gray-700">
-        <div className="border-b border-gray-700 px-4 py-3">
-          <span className="font-semibold text-gray-100 flex items-center">
-            <i className="bi bi-info-circle text-blue-400 mr-2"></i> Dashboard
-            Info
-          </span>
-        </div>
-        <div className="p-4">
-          <form className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                <i className="bi bi-fonts mr-1"></i> Dashboard Name{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Factory Floor"
-                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                <i className="bi bi-card-text mr-1"></i> Description
-              </label>
-              <input
-                type="text"
-                placeholder="Short description"
-                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                <i className="bi bi-person mr-1"></i> Assign to User{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <select className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select user</option>
-              </select>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {/* Add Widget Card */}
-      <div className="bg-gray-800 shadow-md rounded-lg mb-6 border border-gray-700">
-        <div className="border-b border-gray-700 px-4 py-3">
-          <span className="font-semibold text-gray-100 flex items-center">
-            <i className="bi bi-plus-circle text-blue-400 mr-2"></i> Add Widget
-          </span>
-        </div>
-        <div className="p-4">
-          <form className="grid md:grid-cols-4 gap-4">
-            {/* Widget Type */}
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                <i className="bi bi-bar-chart mr-1"></i> Chart Type{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <select
-                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={widgetType}
-                onChange={(e) => setWidgetType(e.target.value)}
-              >
-                <option value="">Select type</option>
-                <option value="line">Line Chart</option>
-                <option value="gauge">Gauge</option>
-                <option value="pressure_chart">Pressure Chart</option>
-                <option value="temperature_chart">Temperature Chart</option>
-                <option value="table">Table</option>
-                <option value="onoff">On/Off Button</option>
-              </select>
-            </div>
-
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                <i className="bi bi-type mr-1"></i> Title
-              </label>
-              <input
-                type="text"
-                placeholder="Widget title (optional)"
-                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Device */}
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                <i className="bi bi-cpu mr-1"></i> Device{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <select className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select device</option>
-              </select>
-            </div>
-
-            {/* Sensor */}
-            <div>
-              <label className="block text-sm font-semibold mb-1">
-                <i className="bi bi-activity mr-1"></i> Sensor{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <select className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select sensor</option>
-              </select>
-            </div>
-          </form>
-
-          {/* Conditional Config Sections */}
-          {widgetType === "table" && (
-            <div className="mt-4">
-              <label className="block text-sm font-semibold mb-1">
-                <i className="bi bi-table mr-1"></i> Table Columns
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. timestamp,value"
-                className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          )}
-
-          {widgetType === "onoff" && (
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  <i className="bi bi-broadcast mr-1"></i> MQTT Topic
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. /device/relay"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  <i className="bi bi-toggle-on mr-1"></i> On Payload
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. ON"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  <i className="bi bi-toggle-off mr-1"></i> Off Payload
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. OFF"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  <i className="bi bi-ui-checks-grid mr-1"></i> Button Label
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Toggle"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Buttons */}
-          <div className="flex items-center mt-4">
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+        {/* Allowed Widgets */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {allowedWidgets.map((widget) => (
+            <motion.div
+              key={widget}
+              whileHover={{ scale: 1.02 }}
+              className="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow hover:shadow-lg hover:border-blue-500 transition cursor-pointer"
+              onClick={() => addWidget(widget)}
             >
-              <i className="bi bi-plus-lg mr-1"></i> Add Widget
-            </button>
-            <button
-              type="button"
-              className="ml-3 border border-gray-500 hover:bg-gray-700 text-gray-200 px-4 py-2 rounded-md"
-            >
-              <i className="bi bi-eye mr-1"></i> Preview Widget
-            </button>
+              <div className="flex items-center gap-3 mb-2">
+                {widgetIcons[widget]}
+                <h3 className="text-xl capitalize font-semibold text-gray-100">
+                  {widget} Widget
+                </h3>
+              </div>
+              <p className="text-gray-400 text-sm">
+                Add this widget to your dashboard.
+              </p>
+              <button className="mt-3 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white font-medium">
+                <PlusCircle className="w-5 h-5" />
+                Add Widget
+              </button>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Added Widgets Section */}
+        <div className="mt-10">
+          <h3 className="text-xl font-semibold text-gray-100 mb-3">
+            Added Widgets
+          </h3>
+          <div className="grid md:grid-cols-3 gap-4">
+            {addedWidgets.length === 0 ? (
+              <div className="text-gray-500 border border-gray-700 p-6 rounded-lg text-center">
+                No widgets added yet.
+              </div>
+            ) : (
+              addedWidgets.map((widget, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-gray-800 p-5 border border-gray-700 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    {widgetIcons[widget.type]}
+                    <p className="text-white font-semibold capitalize">
+                      {widget.type}
+                    </p>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Dashboard Widgets Section */}
-      <div className="mb-6">
-        <h5 className="font-semibold mb-3 flex items-center text-gray-100">
-          <i className="bi bi-grid-3x3-gap mr-2"></i> Dashboard Widgets
-        </h5>
-        <div className="grid md:grid-cols-3 gap-4" id="dashboard-widgets">
-          {/* Widget previews will go here later */}
-          <div className="border-2 border-dashed border-gray-700 rounded-lg h-32 flex items-center justify-center text-gray-500">
-            No widgets added yet
-          </div>
+        {/* Save Button */}
+        <div className="flex justify-end mt-8">
+          <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg text-lg font-semibold shadow-lg">
+            Save Dashboard
+          </button>
         </div>
       </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <button className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg text-lg font-semibold">
-          <i className="bi bi-save mr-1"></i> Save Dashboard
-        </button>
-      </div>
-    </div>
     </DashboardLayout>
   );
 };

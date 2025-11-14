@@ -11,21 +11,37 @@ const Login: React.FC = () => {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error" | "">("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage("");
     setMessageType("");
 
-    // ✅ Local credential validation
-    if (username === "superadmin" && password === "admin123") {
-      setMessage("Login successful! Redirecting...");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.message || "Login failed");
+        setMessageType("error");
+        return;
+      }
+
+      // Store JWT + user info
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      setMessage("Login successful!");
       setMessageType("success");
 
-      localStorage.setItem("isAuthenticated", "true");
+      setTimeout(() => navigate("/dashboard"), 800);
 
-      setTimeout(() => navigate("/dashboard"), 1000);
-    } else {
-      setMessage("Invalid username or password.");
+    } catch (error) {
+      setMessage("Server error");
       setMessageType("error");
     }
   };
@@ -33,21 +49,7 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-[#0B0B0F] text-gray-200">
       <div className="w-full max-w-md px-6">
-        {/* Logos */}
-        <div className="flex justify-center items-center gap-6 py-4">
-          <img
-            src="/site_logo"
-            alt="Site Logo"
-            className="w-24 h-16 object-contain bg-gray-900 rounded-xl shadow-md p-2"
-          />
-          <img
-            src="/client_logo"
-            alt="Client Logo"
-            className="w-14 h-14 object-contain bg-gray-900 rounded-xl shadow-md p-2"
-          />
-        </div>
 
-        {/* Login Card */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -69,7 +71,6 @@ const Login: React.FC = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                autoFocus
               />
             </div>
             <div>
@@ -93,7 +94,6 @@ const Login: React.FC = () => {
             </button>
           </form>
 
-          {/* Message Display */}
           {message && (
             <div
               className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${

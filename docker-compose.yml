@@ -15,4 +15,8 @@ services:
       FLASK_RUN_HOST: 0.0.0.0
       VITE_API_URL: "http://localhost:5000"
       PYTHONUNBUFFERED: 1
+
+      # JWT SECRET
+      JWT_SECRET_KEY: "my-ultra-secret-key"
+
     restart: unless-stopped
