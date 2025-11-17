@@ -1,6 +1,3 @@
-# Franc-Automation
-5a66a203dccbb3ffa70277c159515104fc94187e
-
 # 🛰️ Franc Automation Dashboard
 
 [![Backend: Flask](https://img.shields.io/badge/Backend-Flask-blue?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
@@ -128,3 +125,6 @@ Endpoint	Method	Description
 ✔ Stable & fully functional
 ✔ Real-time MQTT tested
 ✔ History + exports working
+
+# Franc-Automation
+5a66a203dccbb3ffa70277c159515104fc94187e
