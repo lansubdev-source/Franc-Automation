@@ -1,6 +1,0 @@
--- Insert superadmin role if not exists
---INSERT INTO roles (name, description)
---SELECT 'superadmin', 'Super Administrator role'
---WHERE NOT EXISTS (
---    SELECT 1 FROM roles WHERE name='superadmin'
---);

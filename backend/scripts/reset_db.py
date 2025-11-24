@@ -10,7 +10,7 @@ from extensions import db
 def reset_database():
     """Drops and recreates all database tables."""
     with app.app_context():
-        db_path = os.path.join("instance", "devices.db")
+        db_path = os.path.join("instance", "app.db")
 
         # Delete SQLite file if it exists
         if os.path.exists(db_path):

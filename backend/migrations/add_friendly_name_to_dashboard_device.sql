@@ -1,1 +1,0 @@
---ALTER TABLE dashboard_devices ADD COLUMN friendly_name TEXT;

@@ -1,11 +1,14 @@
 // ==============================================
-// useLiveData.ts (Stable Anti-Flicker Version)
+// useLiveData.ts (Stable Anti-Flicker Version v3)
 // ==============================================
 "use client";
+
 import { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
-const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
+// Prefer env variable, fallback to localhost
+const API =
+  (import.meta as any).env?.VITE_API_URL || "http://127.0.0.1:5000";
 
 // -------------------------------
 // Types
@@ -24,7 +27,7 @@ export interface SensorData {
 }
 
 // -------------------------------
-// Helper: format India time
+// Helper: Format to India Time
 // -------------------------------
 function formatIndiaTime(value?: string | number | Date): string {
   if (!value) return "--";
@@ -42,7 +45,7 @@ function formatIndiaTime(value?: string | number | Date): string {
 }
 
 // -------------------------------
-// Hook: useLiveData
+// MAIN HOOK
 // -------------------------------
 export function useLiveData(page: "dashboard" | "live" = "dashboard") {
   const [currentData, setCurrentData] = useState<SensorData>({
@@ -61,10 +64,12 @@ export function useLiveData(page: "dashboard" | "live" = "dashboard") {
 
   const socketRef = useRef<Socket | null>(null);
   const lastUpdateRef = useRef<number>(Date.now());
-  const offlineTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Timer that marks offline ONLY after no messages for long time
+  const offlineTimerRef = useRef<number | null>(null);
 
   // -------------------------------
-  // 🔌 Real-time updates via Socket.IO
+  // 🔌 SOCKET REAL-TIME HANDLING
   // -------------------------------
   useEffect(() => {
     const socket = io(API, {
@@ -76,25 +81,36 @@ export function useLiveData(page: "dashboard" | "live" = "dashboard") {
 
     socketRef.current = socket;
 
+    // Connection status logs
     socket.on("connect", () => {
-      console.log("[Socket.IO] ✅ Connected");
+      console.log("[Socket.IO] Connected");
       setConnected(true);
     });
 
-    socket.on("disconnect", (reason) => {
-      console.warn("[Socket.IO] ⚠️ Disconnected:", reason);
+    socket.on("disconnect", () => {
+      console.warn("[Socket.IO] Disconnected");
       setConnected(false);
     });
 
     socket.on("connect_error", (err) => {
-      console.error("[Socket.IO] ❌ Connection error:", err.message);
+      console.error("[Socket.IO] Failed:", err.message);
       setConnected(false);
     });
 
-    // 🧠 Unified handler for all data events
+    // =============================
+    // CENTRAL PAYLOAD HANDLER
+    // =============================
     const handlePayload = (data: any) => {
       if (!data) return;
-      const online = data.status === "online" || (data.devices_online ?? 0) > 0;
+
+      // Unified online condition
+      const online =
+        data.status === "online" ||
+        data.isConnected === true ||
+        data.deviceConnected === true ||
+        (data.devices_online ?? data.devicesOnline ?? 0) > 0;
+
+      lastUpdateRef.current = Date.now();
 
       const formatted: SensorData = {
         device_name: data.device_name || "Device",
@@ -105,11 +121,10 @@ export function useLiveData(page: "dashboard" | "live" = "dashboard") {
         status: online ? "online" : "offline",
         deviceConnected: online,
         isConnected: online,
-        devicesOnline: data.devices_online ?? (online ? 1 : 0),
+        devicesOnline: data.devices_online ?? data.devicesOnline ?? 1,
         device_id: data.device_id,
       };
 
-      lastUpdateRef.current = Date.now();
       setCurrentData(formatted);
       setIsDeviceConnected(online);
 
@@ -118,11 +133,14 @@ export function useLiveData(page: "dashboard" | "live" = "dashboard") {
         setTableData((prev) => [formatted, ...prev.slice(0, 19)]);
       }
 
-      // Reset offline timeout only when no new data comes for 8s
-      if (offlineTimerRef.current) clearTimeout(offlineTimerRef.current);
-      offlineTimerRef.current = setTimeout(() => {
+      // Reset offline timeout, only mark offline if NO updates for 12s
+      if (offlineTimerRef.current !== null) {
+        window.clearTimeout(offlineTimerRef.current);
+      }
+
+      offlineTimerRef.current = window.setTimeout(() => {
         const diff = Date.now() - lastUpdateRef.current;
-        if (diff > 8000) {
+        if (diff > 10000) {
           setIsDeviceConnected(false);
           setCurrentData((prev) => ({
             ...prev,
@@ -133,40 +151,46 @@ export function useLiveData(page: "dashboard" | "live" = "dashboard") {
             timestamp: "--",
           }));
         }
-      }, 9000);
+      }, 12000);
     };
 
+    // Socket events
     ["sensor_data", "device_data_update", "dashboard_update"].forEach((ev) =>
       socket.on(ev, handlePayload)
     );
 
+    // Device manually marked offline
     socket.on("device_status", (data: any) => {
       if (!data) return;
       const diff = Date.now() - lastUpdateRef.current;
-      if (data.status === "offline" && diff > 8000) {
+      if (data.status === "offline" && diff > 10000) {
         setIsDeviceConnected(false);
       }
     });
 
+    // Global status from backend
     socket.on("mqtt_status", (data: any) => {
       if (!data) return;
       const diff = Date.now() - lastUpdateRef.current;
-      if (data.status === "disconnected" && diff > 8000) {
+      if (data.status === "disconnected" && diff > 10000) {
         setIsDeviceConnected(false);
       }
     });
 
+    // Cleanup
     return () => {
       socket.disconnect();
-      if (offlineTimerRef.current) clearTimeout(offlineTimerRef.current);
+      if (offlineTimerRef.current !== null) {
+        window.clearTimeout(offlineTimerRef.current);
+      }
     };
-  }, []);
+  }, []); // Run only once
 
   // -------------------------------
-  // 🕒 Poll Fallback (ONLY for Live Page)
+  // 🕒 POLLING FALLBACK (LIVE PAGE ONLY)
   // -------------------------------
   useEffect(() => {
-    if (page !== "live") return; // ✅ No polling for dashboard
+    if (page !== "live") return;
 
     const loadLatest = async () => {
       try {
@@ -175,41 +199,45 @@ export function useLiveData(page: "dashboard" | "live" = "dashboard") {
         const latest = await res.json();
         if (!latest) return;
 
+        // Same unified logic
         const online =
-          latest.status === "online" || (latest.devices_online ?? 0) > 0;
+          latest.status === "online" ||
+          latest.isConnected === true ||
+          (latest.devices_online ?? 0) > 0;
+
+        if (!online) return; // do not mark offline here
+
+        lastUpdateRef.current = Date.now();
 
         const formatted: SensorData = {
           ...latest,
           device_name: latest.device_name || "Device",
-          temperature: online ? latest.temperature ?? null : currentData.temperature,
-          humidity: online ? latest.humidity ?? null : currentData.humidity,
-          pressure: online ? latest.pressure ?? null : currentData.pressure,
+          temperature: latest.temperature ?? null,
+          humidity: latest.humidity ?? null,
+          pressure: latest.pressure ?? null,
           timestamp: formatIndiaTime(latest.timestamp || new Date()),
-          status: online ? "online" : "offline",
-          deviceConnected: online,
-          isConnected: online,
-          devicesOnline: latest.devices_online || 0,
+          status: "online",
+          deviceConnected: true,
+          isConnected: true,
+          devicesOnline: latest.devices_online ?? 1,
         };
 
-        if (online) {
-          lastUpdateRef.current = Date.now();
-          setCurrentData(formatted);
-          setChartData((prev) => [...prev.slice(-49), formatted]);
-          setTableData((prev) => [formatted, ...prev.slice(0, 19)]);
-          setIsDeviceConnected(true);
-        }
+        setCurrentData(formatted);
+        setChartData((prev) => [...prev.slice(-49), formatted]);
+        setTableData((prev) => [formatted, ...prev.slice(0, 19)]);
+        setIsDeviceConnected(true);
       } catch (err) {
-        console.error("[useLiveData] ❌ Polling error:", err);
+        console.error("[useLiveData] Poll error:", err);
       }
     };
 
     loadLatest();
-    const interval = setInterval(loadLatest, 5000);
-    return () => clearInterval(interval);
+    const interval = window.setInterval(loadLatest, 5000);
+    return () => window.clearInterval(interval);
   }, [page]);
 
   // -------------------------------
-  // ✅ Unified output
+  // RETURN HOOK DATA
   // -------------------------------
   return {
     currentData,

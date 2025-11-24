@@ -1,3 +1,0 @@
--- SQLite columns are nullable by default, skip if already nullable
--- If you need to force nullability:
--- CREATE TEMP table, copy data, drop old, rename

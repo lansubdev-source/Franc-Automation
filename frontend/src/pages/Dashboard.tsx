@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import {
   LineChart,
@@ -189,7 +189,8 @@ const RealtimeChart = ({ data }: { data: any[] }) => (
 
 // ---------------- MAIN DASHBOARD ----------------
 export default function Dashboard() {
-  const { currentData, chartData, isDeviceConnected } = useLiveData("dashboard");
+  const { currentData, chartData, isDeviceConnected } =
+    useLiveData("dashboard");
 
   const temperature = currentData?.temperature ?? null;
   const humidity = currentData?.humidity ?? null;

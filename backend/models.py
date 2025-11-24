@@ -208,3 +208,33 @@ class Setting(db.Model):
 
     def to_dict(self):
         return {"key": self.key, "value": self.value}
+
+# ========================================
+# History Model (Stores past sensor records)
+# ========================================
+class History(db.Model):
+    __tablename__ = "history"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Linked to a device
+    device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=True)
+
+    temperature = db.Column(db.Float, nullable=True)
+    humidity = db.Column(db.Float, nullable=True)
+    pressure = db.Column(db.Float, nullable=True)
+
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationship back to Device
+    device = db.relationship("Device", backref=db.backref("history", lazy=True))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "device_id": self.device_id,
+            "temperature": self.temperature,
+            "humidity": self.humidity,
+            "pressure": self.pressure,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+        }

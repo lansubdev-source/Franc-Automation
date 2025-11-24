@@ -1,1 +1,0 @@
---ALTER TABLE settings ADD COLUMN footer_text TEXT;

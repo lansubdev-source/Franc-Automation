@@ -7,7 +7,9 @@ import { Thermometer, Droplets, Gauge, Wifi } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
 
-// ✅ Format India time
+// ---------------------------------------------
+// Format to India Time
+// ---------------------------------------------
 function formatIndiaTime(value?: string | number | Date) {
   if (!value) return "—";
   const date = new Date(value);
@@ -24,48 +26,52 @@ function formatIndiaTime(value?: string | number | Date) {
 }
 
 const DashboardPage = () => {
-  const { currentData, chartData } = useLiveData();
+  const { currentData, chartData } = useLiveData("dashboard");
+
   const [lastUpdated, setLastUpdated] = useState<string>("—");
   const [temperature, setTemperature] = useState<number | null>(null);
   const [humidity, setHumidity] = useState<number | null>(null);
   const [pressure, setPressure] = useState<number | null>(null);
   const [isOnline, setIsOnline] = useState<boolean>(false);
 
-  // Track last message time for anti-flicker
+  // Track last live update
   const lastMessageTimeRef = useRef<number>(Date.now());
   const offlineTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 🔁 Update from socket data only if device is connected
+  // =========================================================
+  // 🔥 REAL-TIME SOCKET UPDATES
+  // =========================================================
   useEffect(() => {
-    if (currentData) {
-      const online =
-        currentData?.deviceConnected ||
-        currentData?.isConnected ||
-        (currentData?.devicesOnline ?? 0) > 0;
+    if (!currentData) return;
 
-      // Track time of last valid packet
-      if (online) {
-        lastMessageTimeRef.current = Date.now();
+    const online =
+      currentData?.deviceConnected ||
+      currentData?.isConnected ||
+      (currentData?.devicesOnline ?? 0) > 0;
 
-        if (offlineTimerRef.current) clearTimeout(offlineTimerRef.current);
-        offlineTimerRef.current = setTimeout(() => {
-          const diff = Date.now() - lastMessageTimeRef.current;
-          if (diff > 8000) setIsOnline(false);
-        }, 9000);
-      }
+    if (online) {
+      lastMessageTimeRef.current = Date.now();
 
-      setIsOnline(Boolean(online));
+      if (offlineTimerRef.current) clearTimeout(offlineTimerRef.current);
+      offlineTimerRef.current = setTimeout(() => {
+        const diff = Date.now() - lastMessageTimeRef.current;
+        if (diff > 8000) setIsOnline(false);
+      }, 9000);
+    }
 
-      if (online) {
-        setTemperature(currentData?.temperature ?? 0);
-        setHumidity(currentData?.humidity ?? 0);
-        setPressure(currentData?.pressure ?? 0);
-        setLastUpdated(formatIndiaTime(currentData?.timestamp || new Date()));
-      }
+    setIsOnline(Boolean(online));
+
+    if (online) {
+      setTemperature(currentData.temperature ?? temperature);
+      setHumidity(currentData.humidity ?? humidity);
+      setPressure(currentData.pressure ?? pressure);
+      setLastUpdated(formatIndiaTime(currentData.timestamp));
     }
   }, [currentData]);
 
-  // 🔁 Fallback polling — triggers only if socket stops sending for 8s
+  // =========================================================
+  // 🔁 FALLBACK POLLING — when socket lags >8s
+  // =========================================================
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -73,9 +79,9 @@ const DashboardPage = () => {
         const data = await res.json();
         if (!data) return;
 
-        const online = data.status === "online" || (data.devices_online ?? 0) > 0;
+        const online =
+          data.status === "online" || (data.devices_online ?? 0) > 0;
 
-        // Track polling timestamp
         if (online) {
           lastMessageTimeRef.current = Date.now();
 
@@ -89,29 +95,34 @@ const DashboardPage = () => {
         setIsOnline(online);
 
         if (online) {
-          setTemperature(data.temperature ?? temperature ?? 0);
-          setHumidity(data.humidity ?? humidity ?? 0);
-          setPressure(data.pressure ?? pressure ?? 0);
-          setLastUpdated(formatIndiaTime(data.timestamp || new Date()));
+          setTemperature(data.temperature ?? temperature);
+          setHumidity(data.humidity ?? humidity);
+          setPressure(data.pressure ?? pressure);
+          setLastUpdated(formatIndiaTime(data.timestamp));
         }
       } catch (err) {
-        console.error("[DashboardPage polling error]", err);
+        console.error("[DashboardPage Polling Error]", err);
       }
-    }, 2000);
+    }, 4000);
+
     return () => {
       clearInterval(interval);
       if (offlineTimerRef.current) clearTimeout(offlineTimerRef.current);
     };
   }, [temperature, humidity, pressure]);
 
-  // ⏱ Keep showing system time
+  // =========================================================
+  // ⏱ Update display clock
+  // =========================================================
   const [systemTime, setSystemTime] = useState<string>(formatIndiaTime());
   useEffect(() => {
     const timer = setInterval(() => setSystemTime(formatIndiaTime()), 2000);
     return () => clearInterval(timer);
   }, []);
 
-  // ✅ Status helpers
+  // =========================================================
+  // STATUS HELPERS
+  // =========================================================
   const getTemperatureStatus = (temp: number | null) =>
     !isOnline
       ? "critical"
@@ -128,14 +139,16 @@ const DashboardPage = () => {
       ? "warning"
       : "good";
 
-  // ✅ Gauges
   const temperaturePercent = Math.min(100, ((temperature ?? 0) / 50) * 100);
   const humidityPercent = Math.min(100, humidity ?? 0);
 
+  // =========================================================
+  // UI RENDER
+  // =========================================================
   return (
     <DashboardLayout>
       <div className="space-y-6 text-white bg-[#0d1117] p-6 min-h-screen">
-        {/* ---------- Header ---------- */}
+        {/* -------- Header -------- */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white">Franc Automation</h1>
@@ -161,7 +174,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* ---------- Metric Cards ---------- */}
+        {/* -------- Metric Cards -------- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Temperature"
@@ -192,7 +205,7 @@ const DashboardPage = () => {
           />
         </div>
 
-        {/* ---------- Chart + Gauges ---------- */}
+        {/* -------- Chart + Gauges -------- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <RealtimeChart data={isOnline ? chartData : []} />
@@ -227,7 +240,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* ---------- Footer ---------- */}
+        {/* -------- Footer -------- */}
         <div className="text-center text-gray-400 text-xs pt-6 border-t border-gray-800">
           <p>Last refreshed: {systemTime}</p>
           {!isOnline && (

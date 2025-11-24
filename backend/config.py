@@ -15,7 +15,7 @@ class Config:
     # --- Database ---
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
-        f"sqlite:///{INSTANCE_DIR / 'devices.db'}"
+        f"sqlite:///{INSTANCE_DIR / 'app.db'}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

@@ -100,7 +100,7 @@ def create_app():
     # Instance folder for SQLite DB
     instance_path = os.path.join(app.root_path, "instance")
     os.makedirs(instance_path, exist_ok=True)
-    db_path = os.path.join(instance_path, "devices.db")
+    db_path = os.path.join(instance_path, "app.db")
 
     # Database config
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
@@ -137,6 +137,7 @@ def create_app():
     from backend.routes.user_routes import user_bp
     from backend.routes.role_routes import role_bp
     from backend.routes.dashboard_routes import dashboard_bp
+    from backend.routes.history_routes import history_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(device_bp, url_prefix="/api")
@@ -146,6 +147,7 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix="/api/users")
     app.register_blueprint(role_bp, url_prefix="/api/users")
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(history_bp, url_prefix="/api/history")
 
     # ==========================================================
     # Serve React Frontend Build (production)

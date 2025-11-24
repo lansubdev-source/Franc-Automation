@@ -1,7 +1,0 @@
---CREATE TABLE message_history (
-  --  id INTEGER PRIMARY KEY AUTOINCREMENT,
-    --device_id INTEGER,
- --   topic TEXT,
-   -- payload TEXT,
-  --  timestamp TEXT DEFAULT CURRENT_TIMESTAMP
---);

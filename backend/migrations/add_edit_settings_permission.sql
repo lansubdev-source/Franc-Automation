@@ -1,6 +1,0 @@
--- Add a new permission if it doesn't exist
---INSERT INTO permissions (name, description)
---SELECT 'edit_settings', 'Permission to edit settings'
---WHERE NOT EXISTS (
---    SELECT 1 FROM permissions WHERE name='edit_settings'
---);
