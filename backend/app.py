@@ -147,6 +147,7 @@ def create_app():
     app.register_blueprint(user_bp, url_prefix="/api/users")
     app.register_blueprint(role_bp, url_prefix="/api/users")
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(history_bp, url_prefix="/api/history")
 
     # ==========================================================
     # Serve React Frontend Build (production)
