@@ -229,3 +229,57 @@ class History(db.Model):
             "pressure": self.pressure,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
         }
+
+# ---------- Dashboard & Widget Models ----------
+class Dashboard(db.Model):
+    __tablename__ = "dashboards"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.String(500))
+    owner_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)  # creator/assigned user
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    widgets = db.relationship("DashboardWidget", back_populates="dashboard", cascade="all, delete-orphan")
+    owner = db.relationship("User", backref=db.backref("dashboards", lazy=True))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "owner_id": self.owner_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "widgets": [w.to_dict() for w in self.widgets],
+        }
+
+class DashboardWidget(db.Model):
+    __tablename__ = "dashboard_widgets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    dashboard_id = db.Column(db.Integer, db.ForeignKey("dashboards.id"), nullable=False)
+    widget_type = db.Column(db.String(80), nullable=False)       # e.g., temperature_chart, humidity_chart
+    title = db.Column(db.String(150))
+    device_id = db.Column(db.Integer, db.ForeignKey("devices.id"), nullable=True)
+    sensor = db.Column(db.String(255), nullable=True)            # sensor topic or id
+    config = db.Column(JSON, nullable=True)                      # extra config like columns, mqtt topic, payloads, etc.
+    position = db.Column(db.String(50), nullable=True)           # optional: grid placement like "r1c1"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    dashboard = db.relationship("Dashboard", back_populates="widgets")
+    device = db.relationship("Device", backref=db.backref("widgets", lazy=True))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "dashboard_id": self.dashboard_id,
+            "widget_type": self.widget_type,
+            "title": self.title,
+            "device_id": self.device_id,
+            "sensor": self.sensor,
+            "config": self.config,
+            "position": self.position,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
