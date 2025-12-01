@@ -116,6 +116,7 @@ def create_app():
     CORS(app, resources={r"/api/*": {"origins": "*"}})
     db.init_app(app)
     Migrate(app, db)
+
     socketio.init_app(app, cors_allowed_origins="*", async_mode="eventlet")
 
     # ==========================================================
@@ -142,6 +143,8 @@ def create_app():
     from backend.routes.role_routes import role_bp
     from backend.routes.dashboard_routes import dashboard_bp
     from backend.routes.history_routes import history_bp
+    from backend.routes.dashboardbuilder_routes import dashboardbuilder_bp
+    from backend.routes.dashboards_routes import dashboards_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(device_bp, url_prefix="/api")
@@ -152,6 +155,9 @@ def create_app():
     app.register_blueprint(role_bp, url_prefix="/api/users")
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(history_bp, url_prefix="/api/history")
+    app.register_blueprint(dashboards_bp, url_prefix="/api/dashboards")
+    app.register_blueprint(dashboardbuilder_bp, url_prefix="/api/dashboardbuilder")
+
 
     # ==========================================================
     # Serve React Frontend Build (production)

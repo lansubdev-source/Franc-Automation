@@ -2,11 +2,11 @@ from flask import Blueprint, request, jsonify
 from backend.models import db, Dashboard, DashboardWidget, User, Device
 from functools import wraps
 
-dashboard_bp = Blueprint("dashboardbuilder", __name__, url_prefix="/api")
+dashboardbuilder_bp = Blueprint("dashboardbuilder", __name__, url_prefix="/api")
 
-# -----------------------------------------
-# Helper: get current user from header (?user= for dev fallback)
-# -----------------------------------------
+# --------------------------------------------------------
+# Helper: Get current user (Dev mode: ?user=superadmin etc.)
+# --------------------------------------------------------
 def get_current_user_from_request():
     username = request.args.get("user")  # DEV fallback
     if username:
@@ -27,9 +27,9 @@ def require_user(f):
     return wrapper
 
 
-# -----------------------------------------
-# ROLE → ALLOWED WIDGET TYPES
-# -----------------------------------------
+# --------------------------------------------------------
+# ROLE → ALLOWED WIDGET TYPES (same as frontend)
+# --------------------------------------------------------
 def allowed_widgets_for_role(role_name: str):
     if role_name in ("superadmin", "admin"):
         return [
@@ -39,7 +39,7 @@ def allowed_widgets_for_role(role_name: str):
             "temperature_chart",
             "humidity_chart",
             "table",
-            "onoff"
+            "onoff",
         ]
     if role_name == "user1":
         return ["temperature_chart"]
@@ -51,63 +51,51 @@ def allowed_widgets_for_role(role_name: str):
         return ["temperature_chart", "pressure_chart"]
     return []  # user5 → user10
 
-
 # ================================================================
-# USERS DROPDOWN  → /api/users
+# USERS DROPDOWN → /api/users   (Assign To User Dropdown)
 # ================================================================
-@dashboard_bp.route("/users", methods=["GET"])
+@dashboardbuilder_bp.route("/users", methods=["GET"])
 @require_user
 def list_users(current_user):
     users = User.query.order_by(User.username).all()
-    output = []
+    out = []
     for u in users:
         role = u.roles[0].name if u.roles else "user"
-        output.append({
+        out.append({
             "id": u.id,
             "username": u.username,
             "role": role
         })
-    return jsonify(output)
-
+    return jsonify(out)
 
 # ================================================================
 # DEVICES DROPDOWN → /api/devices
 # ================================================================
-@dashboard_bp.route("/devices", methods=["GET"])
+@dashboardbuilder_bp.route("/devices", methods=["GET"])
 @require_user
 def list_devices(current_user):
     devices = Device.query.order_by(Device.name).all()
     return jsonify([
-        {"id": d.id, "name": d.name}
-        for d in devices
+        {"id": d.id, "name": d.name} for d in devices
     ])
 
-
 # ================================================================
-# SENSORS DROPDOWN → STATIC VALUES (Your Requirement)
+# SENSORS DROPDOWN → STATIC (Your requirement)
 # ================================================================
-@dashboard_bp.route("/sensors", methods=["GET"])
+@dashboardbuilder_bp.route("/sensors", methods=["GET"])
 @require_user
 def list_sensors(current_user):
-    """
-    You requested: sensors dropdown must ONLY show:
-      - temperature
-      - humidity
-      - pressure
-    """
-
-    static_sensors = [
+    static = [
         {"id": 1, "topic": "temperature"},
         {"id": 2, "topic": "humidity"},
         {"id": 3, "topic": "pressure"},
     ]
-    return jsonify(static_sensors)
-
+    return jsonify(static)
 
 # ================================================================
-# CREATE DASHBOARD → /api/dashboards
+# CREATE DASHBOARD → /api/dashboards   (POST)
 # ================================================================
-@dashboard_bp.route("/dashboards", methods=["POST"])
+@dashboardbuilder_bp.route("/dashboards", methods=["POST"])
 @require_user
 def create_dashboard(current_user):
 
@@ -115,33 +103,29 @@ def create_dashboard(current_user):
 
     name = data.get("name")
     description = data.get("description", "")
-    owner_user_id = data.get("owner_user_id")  # <== NOW OPTIONAL
+    owner_user_id = data.get("owner_user_id", None)
     widgets = data.get("widgets", [])
 
-    # ------------------------------------------
-    # If assign user is not selected → use current user
-    # ------------------------------------------
+    if not name:
+        return jsonify({"status": "error", "message": "Dashboard name required"}), 400
+
+    # If assign-user is blank, owner = current user
     if not owner_user_id:
         owner_user_id = current_user.id
 
-    if not name:
-        return jsonify({"status": "error", "message": "Name is required"}), 400
-
     owner = User.query.get(owner_user_id)
     if not owner:
-        return jsonify({"status": "error", "message": "Owner not found"}), 400
+        return jsonify({"status": "error", "message": "Owner user not found"}), 400
 
-    # Determine allowed widget types based on owner's role
+    # Role permission check for widget types
     owner_role = owner.roles[0].name if owner.roles else "user"
-    allowed_widget_types = allowed_widgets_for_role(owner_role)
+    allowed_types = allowed_widgets_for_role(owner_role)
 
-    # Validate each widget type
     for w in widgets:
-        wtype = w.get("type")
-        if wtype not in allowed_widget_types:
+        if w.get("type") not in allowed_types:
             return jsonify({
                 "status": "error",
-                "message": f"Widget '{wtype}' not allowed for role '{owner_role}'"
+                "message": f"Widget '{w.get('type')}' not allowed for role '{owner_role}'"
             }), 403
 
     # Create dashboard
@@ -151,16 +135,16 @@ def create_dashboard(current_user):
         owner_id=owner_user_id
     )
     db.session.add(dashboard)
-    db.session.flush()
+    db.session.flush()  # get dashboard.id
 
-    # Create widgets
+    # Add widgets
     for w in widgets:
         widget = DashboardWidget(
             dashboard_id=dashboard.id,
             widget_type=w.get("type"),
             title=w.get("title"),
             device_id=w.get("device_id"),
-            sensor=str(w.get("sensor_id") or ""),
+            sensor=str(w.get("sensor_id") or ""),  # stored as STRING
             config=w.get("config", {})
         )
         db.session.add(widget)
@@ -169,15 +153,14 @@ def create_dashboard(current_user):
 
     return jsonify({
         "status": "success",
-        "message": "Dashboard created",
+        "message": "Dashboard saved",
         "dashboard": dashboard.to_dict()
     })
 
-
 # ================================================================
-# LIST DASHBOARDS → /api/dashboards
+# LIST DASHBOARDS → /api/dashboards   (GET)
 # ================================================================
-@dashboard_bp.route("/dashboards", methods=["GET"])
+@dashboardbuilder_bp.route("/dashboards", methods=["GET"])
 @require_user
 def list_dashboards(current_user):
     role = current_user.roles[0].name if current_user.roles else "user"
@@ -189,11 +172,10 @@ def list_dashboards(current_user):
 
     return jsonify([d.to_dict() for d in dashboards])
 
-
 # ================================================================
 # GET ONE DASHBOARD → /api/dashboards/<id>
 # ================================================================
-@dashboard_bp.route("/dashboards/<int:dash_id>", methods=["GET"])
+@dashboardbuilder_bp.route("/dashboards/<int:dash_id>", methods=["GET"])
 @require_user
 def get_dashboard(current_user, dash_id):
     dash = Dashboard.query.get_or_404(dash_id)

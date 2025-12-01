@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
 /**
@@ -8,26 +9,13 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
  * - Loads users / devices / sensors for selects (via /api)
  * - Lets user add widgets to a temporary list, preview, and save dashboard
  *
- * Notes:
- * - Sensor dropdown shows fixed sensor types (temperature, humidity, pressure)
- *   as requested. Backend sensors (if present) are still fetched but the UI
- *   prefers the fixed sensor-type selection for typical IoT numeric widgets.
- * - Role dropdown filters the "Assign to User" dropdown to only show users
- *   for the chosen role.
- *
- * Backend endpoints assumed:
- * - GET  /api/users            -> list users (id, username, roles[])
- * - GET  /api/devices          -> list devices (id, name)
- * - GET  /api/sensors?device=  -> optional; we still call it but UI uses fixed types
- * - POST /api/dashboards       -> create dashboard (payload below)
- *
- * Dashboard POST payload example:
- * {
- *   name,
- *   description,
- *   owner_user_id,
- *   widgets: [{ type, title, device_id, sensor, config }]
- * }
+ * Assumptions:
+ * - Backend endpoints:
+ *    GET  /api/users            -> list users (each user has .id, .username, .role)
+ *    GET  /api/devices          -> list devices (each device has .id, .name)
+ *    GET  /api/sensors?device=  -> list sensors for device (optional). Fallback to static sensors (temp/hum/press)
+ *    POST /api/dashboards       -> create dashboard (body contains name, description, owner_user_id, widgets)
+ * - Auth token (if any) is stored in localStorage.user.token
  */
 
 type Widget = {
@@ -35,39 +23,42 @@ type Widget = {
   type: string;
   title?: string;
   deviceId?: number | null;
-  sensor?: string | number | null; // string for fixed sensor types (temperature...), number for backend sensor id
+  sensorId?: number | null;
   config?: Record<string, any>;
+  dateFrom?: string | null;
+  dateTo?: string | null;
 };
 
 const DashboardBuilder: React.FC = () => {
+  const navigate = useNavigate();
+
   const [role, setRole] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+  // assignUserId is optional (unrequired)
   const [assignUserId, setAssignUserId] = useState<number | "">("");
+  const [assignRole, setAssignRole] = useState<string>(""); // new Role dropdown (filters users if needed)
+
   const [widgetType, setWidgetType] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [deviceId, setDeviceId] = useState<number | "">("");
-  const [sensor, setSensor] = useState<string | number | "">(""); // can be "temperature" or sensor id
+  const [sensorId, setSensorId] = useState<number | "">("");
   const [tableColumns, setTableColumns] = useState<string>("");
   const [onPayload, setOnPayload] = useState<string>("ON");
   const [offPayload, setOffPayload] = useState<string>("OFF");
   const [mqttTopic, setMqttTopic] = useState<string>("");
   const [buttonLabel, setButtonLabel] = useState<string>("Toggle");
+  // date range for widget preview (per-widget will also have its own captured range)
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   const [users, setUsers] = useState<Array<any>>([]);
   const [devices, setDevices] = useState<Array<any>>([]);
-  const [backendSensors, setBackendSensors] = useState<Array<any>>([]); // sensors returned by backend per device
+  const [sensors, setSensors] = useState<Array<any>>([]);
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [message, setMessage] = useState<string>("");
 
-  // Fixed sensor type options requested (human label + internal value)
-  const FIXED_SENSOR_TYPES = [
-    { value: "temperature", label: "Temperature" },
-    { value: "humidity", label: "Humidity" },
-    { value: "pressure", label: "Pressure" },
-  ];
-
-  // read role from localStorage user object
+  // read role from localStorage user object (front-end logged-in user)
   useEffect(() => {
     const raw = localStorage.getItem("user");
     if (raw) {
@@ -80,102 +71,7 @@ const DashboardBuilder: React.FC = () => {
     }
   }, []);
 
-  // fetch users / devices initially
-  useEffect(() => {
-    const token = getToken();
-    // GET users
-    fetch("/api/users", authGet(token))
-      .then((r) => r.json())
-      .then((data) => {
-        // try both shapes: {status, users} or raw array
-        if (data && data.users) {
-          setUsers(data.users);
-        } else if (Array.isArray(data)) {
-          setUsers(data);
-        } else if (data && data.status === "success" && Array.isArray(data.users)) {
-          setUsers(data.users);
-        } else {
-          setUsers([]);
-        }
-      })
-      .catch(() => {
-        setUsers([]);
-      });
-
-    // GET devices
-    fetch("/api/devices", authGet(token))
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.devices) {
-          setDevices(data.devices);
-        } else if (Array.isArray(data)) {
-          setDevices(data);
-        } else {
-          setDevices([]);
-        }
-      })
-      .catch(() => {
-        setDevices([]);
-      });
-  }, []);
-
-  // fetch backend sensors when device changes (we still call backend for completeness)
-  useEffect(() => {
-    if (!deviceId) {
-      setBackendSensors([]);
-      return;
-    }
-    const token = getToken();
-    // call sensors endpoint if available — expecting {status, sensors: [...]}
-    fetch(`/api/sensors?device=${deviceId}`, authGet(token))
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.sensors && Array.isArray(data.sensors)) {
-          setBackendSensors(data.sensors);
-        } else if (Array.isArray(data)) {
-          setBackendSensors(data);
-        } else {
-          setBackendSensors([]);
-        }
-      })
-      .catch(() => {
-        setBackendSensors([]);
-      });
-  }, [deviceId]);
-
-  // allowed widgets per role (server-side should also enforce; frontend filters)
-  const allowedWidgetsForRole = (r: string) => {
-    switch (r) {
-      case "superadmin":
-      case "admin":
-        return [
-          { value: "line", label: "Line Chart" },
-          { value: "gauge", label: "Gauge" },
-          { value: "pressure_chart", label: "Pressure Chart" },
-          { value: "temperature_chart", label: "Temperature Chart" },
-          { value: "humidity_chart", label: "Humidity Chart" },
-          { value: "table", label: "Table" },
-          { value: "onoff", label: "On/Off Button" },
-        ];
-      case "user1":
-        return [{ value: "temperature_chart", label: "Temperature Chart" }];
-      case "user2":
-        return [{ value: "humidity_chart", label: "Humidity Chart" }];
-      case "user3":
-        return [{ value: "pressure_chart", label: "Pressure Chart" }];
-      case "user4":
-        return [
-          { value: "temperature_chart", label: "Temperature Chart" },
-          { value: "pressure_chart", label: "Pressure Chart" },
-        ];
-      default:
-        return [];
-    }
-  };
-
-  const allowedWidgets = allowedWidgetsForRole(role);
-
-  // helper: auth headers
+  // helper: token and auth helpers
   function getToken() {
     const raw = localStorage.getItem("user");
     if (!raw) return "";
@@ -203,38 +99,113 @@ const DashboardBuilder: React.FC = () => {
     } as RequestInit;
   }
 
-  // Role list derived from users (unique role names) + fallback list
-  const roleOptions = React.useMemo(() => {
-    const setRoles = new Set<string>();
-    users.forEach((u: any) => {
-      if (u.roles && Array.isArray(u.roles)) {
-        u.roles.forEach((r: any) => {
-          // r may be object {name} or string depending on backend
-          if (typeof r === "string") setRoles.add(r);
-          else if (typeof r === "object" && r.name) setRoles.add(r.name);
-        });
-      } else if (u.role) {
-        setRoles.add(u.role);
-      }
-    });
-    // ensure some core roles always present
-    ["superadmin", "admin", "user"].forEach((r) => setRoles.add(r));
-    return Array.from(setRoles);
-  }, [users]);
+  // fetch users / devices initially
+  useEffect(() => {
+    const token = getToken();
 
-  // filtered users by selected role (role filter); if role empty => show all
-  const filteredUsers = React.useMemo(() => {
-    if (!role) return users;
-    return users.filter((u: any) => {
-      // backend may return u.role or u.roles[]
-      if (u.role) return u.role === role;
-      if (u.roles && Array.isArray(u.roles)) {
-        const names = u.roles.map((x: any) => (typeof x === "string" ? x : x.name));
-        return names.includes(role);
-      }
-      return false;
-    });
-  }, [users, role]);
+    fetch("/api/users", authGet(token))
+      .then((r) => r.json())
+      .then((data) => {
+        // some APIs return {status, users: []}, some return array directly.
+        if (Array.isArray(data)) setUsers(data);
+        else if (data?.users) setUsers(data.users);
+        else if (data?.status === "success" && Array.isArray(data?.users)) setUsers(data.users);
+      })
+      .catch(() => {
+        // ignore
+      });
+
+    fetch("/api/devices", authGet(token))
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setDevices(data);
+        else if (data?.devices) setDevices(data.devices);
+        else if (data?.status === "success" && Array.isArray(data?.devices)) setDevices(data.devices);
+      })
+      .catch(() => {
+        // ignore
+      });
+  }, []);
+
+  // compute roles from users (unique)
+  const roles = Array.from(new Set(users.map((u) => (u.role || (u.roles?.[0]?.name || "user"))))).sort();
+
+  // fetch sensors when device changes
+  useEffect(() => {
+    if (!deviceId) {
+      // show static sensors if no device chosen
+      setSensors([
+        { id: "temperature", topic: "temperature" },
+        { id: "humidity", topic: "humidity" },
+        { id: "pressure", topic: "pressure" },
+      ]);
+      return;
+    }
+
+    // try call backend sensors endpoint for that device
+    const token = getToken();
+    // backend might expect device param name device or device_id — try both patterns gracefully
+    fetch(`/api/sensors?device=${deviceId}`, authGet(token))
+      .then((r) => r.json())
+      .then((data) => {
+        // backend responses: {status, sensors: []} or array
+        if (Array.isArray(data)) {
+          // array of sensors
+          setSensors(data);
+        } else if (data?.sensors && Array.isArray(data.sensors) && data.sensors.length > 0) {
+          setSensors(data.sensors);
+        } else if (data?.status === "success" && Array.isArray(data?.sensors) && data.sensors.length > 0) {
+          setSensors(data.sensors);
+        } else {
+          // fallback to static
+          setSensors([
+            { id: "temperature", topic: "temperature" },
+            { id: "humidity", topic: "humidity" },
+            { id: "pressure", topic: "pressure" },
+          ]);
+        }
+      })
+      .catch(() => {
+        // fallback static values
+        setSensors([
+          { id: "temperature", topic: "temperature" },
+          { id: "humidity", topic: "humidity" },
+          { id: "pressure", topic: "pressure" },
+        ]);
+      });
+  }, [deviceId]);
+
+  // allowed widgets per role (frontend mirror of backend rules)
+  const allowedWidgetsForRole = (r: string) => {
+    switch (r) {
+      case "superadmin":
+      case "admin":
+        return [
+          { value: "line", label: "Line Chart" },
+          { value: "gauge", label: "Gauge" },
+          { value: "pressure_chart", label: "Pressure Chart" },
+          { value: "temperature_chart", label: "Temperature Chart" },
+          { value: "humidity_chart", label: "Humidity Chart" },
+          { value: "table", label: "Table" },
+          { value: "onoff", label: "On/Off Button" },
+        ];
+      case "user1":
+        return [{ value: "temperature_chart", label: "Temperature Chart" }];
+      case "user2":
+        return [{ value: "humidity_chart", label: "Humidity Chart" }];
+      case "user3":
+        return [{ value: "pressure_chart", label: "Pressure Chart" }];
+      case "user4":
+        return [
+          { value: "temperature_chart", label: "Temperature Chart" },
+          { value: "pressure_chart", label: "Pressure Chart" },
+        ];
+      default:
+        return []; // user5..user10 fallback
+    }
+  };
+
+  const allowedWidgets = allowedWidgetsForRole(role);
 
   // add widget to list (client-side)
   const addWidget = (e?: React.FormEvent) => {
@@ -246,13 +217,13 @@ const DashboardBuilder: React.FC = () => {
       return;
     }
 
-    // validate chosen widget type is allowed for the role
+    // validate that the chosen widgetType is allowed for the role
     if (!allowedWidgets.some((w) => w.value === widgetType)) {
       setMessage("You are not permitted to add this widget type.");
       return;
     }
 
-    // sensors/devices required for most widgets
+    // devices/sensor required for most widgets (onoff can allow missing sensor)
     const needsDeviceSensor = [
       "line",
       "gauge",
@@ -267,7 +238,7 @@ const DashboardBuilder: React.FC = () => {
         setMessage("Please select a device.");
         return;
       }
-      if (!sensor && widgetType !== "onoff") {
+      if (!sensorId && widgetType !== "onoff") {
         setMessage("Please select a sensor.");
         return;
       }
@@ -279,12 +250,16 @@ const DashboardBuilder: React.FC = () => {
       type: widgetType,
       title: title || undefined,
       deviceId: deviceId === "" ? null : Number(deviceId),
-      sensor: sensor === "" ? null : sensor,
+      sensorId: sensorId === "" ? null : sensorId, // could be string (topic) or numeric id depending on backend
       config: {},
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
     };
 
     if (widgetType === "table") {
-      wid.config = { columns: (tableColumns || "timestamp,value").split(",").map((c) => c.trim()) };
+      wid.config = {
+        columns: (tableColumns || "timestamp,value").split(",").map((c) => c.trim()),
+      };
     }
     if (widgetType === "onoff") {
       wid.config = { mqttTopic, onPayload, offPayload, buttonLabel };
@@ -296,12 +271,14 @@ const DashboardBuilder: React.FC = () => {
     setWidgetType("");
     setTitle("");
     setDeviceId("");
-    setSensor("");
+    setSensorId("");
     setTableColumns("");
     setMqttTopic("");
     setOnPayload("ON");
     setOffPayload("OFF");
     setButtonLabel("Toggle");
+    setDateFrom("");
+    setDateTo("");
   };
 
   const removeWidget = (id: string) => setWidgets((w) => w.filter((x) => x.id !== id));
@@ -313,31 +290,43 @@ const DashboardBuilder: React.FC = () => {
       setMessage("Dashboard name required.");
       return;
     }
-    // If no user selected → auto assign dashboard to current user
-      let finalOwnerId = assignUserId;
-      try {
-        const raw = localStorage.getItem("user");
-        if (!finalOwnerId && raw) {
-          const parsed = JSON.parse(raw);
-          finalOwnerId = parsed.id; // current logged user ID
-        }
-      } catch {}
 
-      if (!finalOwnerId) {
-        setMessage("Unable to detect user.");
-        return;
-      }
+    // assignUserId optional — if blank use current user (read from localStorage)
+let ownerId: number | "" | null = assignUserId;
 
+// FIXED: safe check
+if (ownerId === "" || ownerId === null || ownerId === undefined) {
+  const raw = localStorage.getItem("user");
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+
+      ownerId =
+        parsed?.user_id ||
+        parsed?.id ||
+        parsed?.userId ||
+        parsed?.user?.id ||
+        null;
+
+    } catch {
+      ownerId = null;
+    }
+  }
+}
+
+    // if still falsy, set to undefined and backend should fallback to creator
     const payload = {
       name,
       description,
-      owner_id: finalOwnerId,
+      owner_user_id: ownerId || undefined,
       widgets: widgets.map((w) => ({
-        widget_type: w.type,
+        type: w.type,
         title: w.title,
         device_id: w.deviceId,
-        sensor: w.sensor,
+        sensor_id: w.sensorId,
         config: w.config || {},
+        date_from: w.dateFrom || null,
+        date_to: w.dateTo || null,
       })),
     };
 
@@ -349,72 +338,13 @@ const DashboardBuilder: React.FC = () => {
         return;
       }
       setMessage("Dashboard saved successfully.");
-      // optionally clear form
-      setName("");
-      setDescription("");
-      setAssignUserId("");
-      setWidgets([]);
+      // clear or navigate to dashboards list
+      setTimeout(() => {
+        navigate("/dashboards");
+      }, 500);
     } catch (err) {
       setMessage("Server error while saving dashboard.");
     }
-  };
-
-  // When device selected, pre-select sensor to empty and show fixed sensor options first.
-  // We do still fetch backend sensors above — but per request the dropdown will show the fixed list.
-  const handleDeviceChange = (val: number | "") => {
-    setDeviceId(val);
-    setSensor("");
-    // backendSensors fetch is triggered by useEffect
-  };
-
-  // Choose sensor from combined options: fixed sensor types first, then backend sensors (if any)
-  const renderSensorOptions = () => {
-    const options: JSX.Element[] = [];
-    // fixed sensor types
-    FIXED_SENSOR_TYPES.forEach((s) => {
-      options.push(
-        <option key={`fixed_${s.value}`} value={s.value}>
-          {s.label}
-        </option>
-      );
-    });
-    // if backend sensors exist for this device, show them separated
-    if (backendSensors && backendSensors.length > 0) {
-      options.push(
-        <option key="sep_backend" disabled>
-          — Backend sensors (topic) —
-        </option>
-      );
-      backendSensors.forEach((s: any) => {
-        const label = s.topic || s.id || s.payload || `sensor-${s.id}`;
-        // use numeric id value to represent backend sensor (keeps compatibility)
-        options.push(
-          <option key={`backend_${s.id}`} value={s.id}>
-            {label}
-          </option>
-        );
-      });
-    }
-    return options;
-  };
-
-  // minimal preview label for sensor (resolve sensor to string label)
-  const sensorLabel = (s: string | number | null | undefined) => {
-    if (!s && s !== 0) return "—";
-    if (typeof s === "string") {
-      // match fixed sensors
-      const found = FIXED_SENSOR_TYPES.find((x) => x.value === s);
-      if (found) return found.label;
-      // else maybe it's a backend topic string
-      return s;
-    }
-    if (typeof s === "number") {
-      // search backendSensors list
-      const found = backendSensors.find((x) => Number(x.id) === Number(s));
-      if (found) return found.topic || `sensor-${found.id}`;
-      return `sensor-${s}`;
-    }
-    return String(s);
   };
 
   return (
@@ -441,75 +371,73 @@ const DashboardBuilder: React.FC = () => {
             </span>
           </div>
           <div className="p-4">
-            <form className="grid md:grid-cols-3 gap-4">
+            <form className="grid md:grid-cols-3 gap-4" onSubmit={(e) => e.preventDefault()}>
               <div>
                 <label className="block text-sm font-semibold mb-1">
                   <i className="bi bi-fonts mr-1"></i> Dashboard Name{" "}
-                  <span className="text-red-500"></span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  type="text"
                   placeholder="e.g. Factory Floor"
                   className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-semibold mb-1">
                   <i className="bi bi-card-text mr-1"></i> Description
                 </label>
                 <input
-                  type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  type="text"
                   placeholder="Short description"
                   className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              {/* Role dropdown (filters assign-to user list) */}
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  <i className="bi bi-person-badge mr-1"></i> Role (filter users)
-                </label>
-                <select
-                  value={role}
-                  onChange={(e) => {
-                    setRole(e.target.value);
-                    // when role changes, clear assigned user selection
-                    setAssignUserId("");
-                  }}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">All roles</option>
-                  {roleOptions.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Assign to User */}
               <div>
                 <label className="block text-sm font-semibold mb-1">
                   <i className="bi bi-person mr-1"></i> Assign to User{" "}
-                  <span className="text-red-500">*</span>
+                  <span className="text-gray-400 text-xs ml-1">(optional)</span>
                 </label>
+
+                {/* Role Dropdown - derived from users */}
+                <div className="mb-2">
+                  <select
+                    value={assignRole}
+                    onChange={(e) => setAssignRole(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Filter by role (optional)</option>
+                    {roles.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <select
                   value={assignUserId}
-                  onChange={(e) =>
-                    setAssignUserId(e.target.value === "" ? "" : Number(e.target.value))
-                  }
+                  onChange={(e) => setAssignUserId(e.target.value === "" ? "" : Number(e.target.value))}
                   className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select user</option>
-                  {filteredUsers.map((u: any) => (
-                    <option key={u.id} value={u.id}>
-                      {u.username} {u.roles?.length ? `(${u.roles.map((r: any) => (typeof r === "string" ? r : r.name)).join(",")})` : ""}
-                    </option>
-                  ))}
+                  <option value="">Select user (optional)</option>
+                  {users
+                    .filter((u) => {
+                      if (!assignRole) return true;
+                      const r = u.role || (u.roles?.[0]?.name || "user");
+                      return r === assignRole;
+                    })
+                    .map((u: any) => (
+                      <option key={u.id} value={u.id}>
+                        {u.username} {u.role ? `(${u.role})` : u.roles?.length ? `(${u.roles.map((r:any)=>r.name).join(",")})` : ""}
+                      </option>
+                    ))}
                 </select>
               </div>
             </form>
@@ -524,7 +452,7 @@ const DashboardBuilder: React.FC = () => {
             </span>
           </div>
           <div className="p-4">
-            <form className="grid md:grid-cols-4 gap-4" onSubmit={(e) => { e.preventDefault(); addWidget(); }}>
+            <form className="grid md:grid-cols-4 gap-4" onSubmit={addWidget}>
               {/* Widget Type */}
               <div>
                 <label className="block text-sm font-semibold mb-1">
@@ -554,9 +482,9 @@ const DashboardBuilder: React.FC = () => {
                   <i className="bi bi-type mr-1"></i> Title
                 </label>
                 <input
-                  type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  type="text"
                   placeholder="Widget title (optional)"
                   className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -571,7 +499,7 @@ const DashboardBuilder: React.FC = () => {
                 <select
                   className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={deviceId}
-                  onChange={(e) => handleDeviceChange(e.target.value === "" ? "" : Number(e.target.value))}
+                  onChange={(e) => setDeviceId(e.target.value === "" ? "" : Number(e.target.value))}
                 >
                   <option value="">Select device</option>
                   {devices.map((d: any) => (
@@ -582,7 +510,7 @@ const DashboardBuilder: React.FC = () => {
                 </select>
               </div>
 
-              {/* Sensor: fixed 3 types + backend sensors if available */}
+              {/* Sensor */}
               <div>
                 <label className="block text-sm font-semibold mb-1">
                   <i className="bi bi-activity mr-1"></i> Sensor{" "}
@@ -590,50 +518,67 @@ const DashboardBuilder: React.FC = () => {
                 </label>
                 <select
                   className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={sensor}
+                  value={sensorId}
                   onChange={(e) => {
-                    // try parse numeric id -> use number; else string
-                    const val = e.target.value;
-                    if (/^\d+$/.test(val)) {
-                      setSensor(Number(val));
-                    } else {
-                      setSensor(val);
-                    }
-                  }}
+                  const value = e.target.value;
+                  setAssignUserId(value === "" ? "" : Number(value));
+                }}
                 >
                   <option value="">Select sensor</option>
-                  {renderSensorOptions()}
+                  {sensors.map((s: any) => (
+                    <option key={s.id ?? s.topic} value={s.id ?? s.topic}>
+                      {s.topic ?? s.name ?? s.id}
+                    </option>
+                  ))}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">
-                  Select a sensor type (Temperature / Humidity / Pressure) or a backend sensor topic.
-                </p>
               </div>
 
-              {/* conditional row for table */}
+              {/* Date range selector (applies to preview and saved widget metadata) */}
+              <div className="md:col-span-4 grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-1">From (optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">To (optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100"
+                  />
+                </div>
+              </div>
+
+              {/* Conditional Config Sections */}
               {widgetType === "table" && (
                 <div className="md:col-span-4">
                   <label className="block text-sm font-semibold mb-1">
                     <i className="bi bi-table mr-1"></i> Table Columns
                   </label>
                   <input
-                    type="text"
                     value={tableColumns}
                     onChange={(e) => setTableColumns(e.target.value)}
+                    type="text"
                     placeholder="e.g. timestamp,value"
                     className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               )}
 
-              {/* onoff config */}
               {widgetType === "onoff" && (
                 <div className="md:col-span-4 grid md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-semibold mb-1">MQTT Topic</label>
                     <input
-                      type="text"
                       value={mqttTopic}
                       onChange={(e) => setMqttTopic(e.target.value)}
+                      type="text"
                       placeholder="/device/relay"
                       className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100"
                     />
@@ -641,27 +586,27 @@ const DashboardBuilder: React.FC = () => {
                   <div>
                     <label className="block text-sm font-semibold mb-1">On Payload</label>
                     <input
-                      type="text"
                       value={onPayload}
                       onChange={(e) => setOnPayload(e.target.value)}
+                      type="text"
                       className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-1">Off Payload</label>
                     <input
-                      type="text"
                       value={offPayload}
                       onChange={(e) => setOffPayload(e.target.value)}
+                      type="text"
                       className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-1">Button Label</label>
                     <input
-                      type="text"
                       value={buttonLabel}
                       onChange={(e) => setButtonLabel(e.target.value)}
+                      type="text"
                       className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 text-gray-100"
                     />
                   </div>
@@ -689,12 +634,12 @@ const DashboardBuilder: React.FC = () => {
           </div>
         </div>
 
-        {/* Dashboard Widgets Section */}
+        {/* Widgets Preview */}
         <div className="mb-6">
           <h5 className="font-semibold mb-3 flex items-center text-gray-100">
             <i className="bi bi-grid-3x3-gap mr-2"></i> Dashboard Widgets
           </h5>
-          <div className="grid md:grid-cols-3 gap-4" id="dashboard-widgets">
+          <div className="grid md:grid-cols-3 gap-4">
             {widgets.length === 0 ? (
               <div className="border-2 border-dashed border-gray-700 rounded-lg h-32 flex items-center justify-center text-gray-500">
                 No widgets added yet
@@ -704,10 +649,16 @@ const DashboardBuilder: React.FC = () => {
                 <div key={w.id} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="text-sm text-gray-300 font-semibold">{w.title || `Widget: ${w.type}`}</div>
+                      <div className="text-sm text-gray-300 font-semibold">
+                        {w.title || `Widget: ${w.type}`}
+                      </div>
                       <div className="text-xs text-gray-400">{w.type}</div>
                       <div className="text-xs text-gray-400">
-                        Device: {w.deviceId ?? "—"} Sensor: {sensorLabel(w.sensor)}
+                        Device: {w.deviceId ?? "—"} Sensor: {w.sensorId ?? "—"}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        {w.dateFrom ? `From: ${w.dateFrom}` : "From: —"}{" "}
+                        {w.dateTo ? ` To: ${w.dateTo}` : ""}
                       </div>
                     </div>
                     <div>
@@ -720,17 +671,25 @@ const DashboardBuilder: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Minimal "preview" box */}
-                  <div className="mt-3 h-24 bg-gray-900 rounded-md border border-gray-800 flex items-center justify-center text-gray-500">
-                    {w.type.includes("chart") ? (
-                      <div>Chart preview ({w.type})</div>
-                    ) : w.type === "table" ? (
-                      <div>Table preview — columns: {(w.config?.columns || []).join(", ")}</div>
-                    ) : w.type === "onoff" ? (
-                      <div>On/Off control — topic: {w.config?.mqttTopic || mqttTopic}</div>
-                    ) : (
-                      <div>Preview</div>
-                    )}
+                  {/* Minimal "preview" box — styled like cards in the dashboard */}
+                  <div className="mt-3 h-24 bg-gray-900 rounded-md border border-gray-800 flex flex-col p-3 justify-center text-gray-500">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold text-gray-200">
+                        {w.type.includes("chart") ? "Chart preview" : w.type === "table" ? "Table preview" : "Control preview"}
+                      </div>
+                      <div className="text-xs text-gray-400">{w.config?.columns ? (w.config.columns || []).join(", ") : ""}</div>
+                    </div>
+                    <div className="mt-2 text-xs text-gray-400">
+                      {w.type.includes("chart") ? (
+                        `Previewing ${w.type} for sensor ${w.sensorId ?? "—"}`
+                      ) : w.type === "table" ? (
+                        `Columns: ${(w.config?.columns || []).join(", ")}`
+                      ) : w.type === "onoff" ? (
+                        `Topic: ${w.config?.mqttTopic || mqttTopic}`
+                      ) : (
+                        "Preview"
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -738,7 +697,7 @@ const DashboardBuilder: React.FC = () => {
           </div>
         </div>
 
-        {/* Save Button */}
+        {/* Save */}
         <div className="flex justify-end items-center gap-4">
           {message && <div className="text-sm text-yellow-300">{message}</div>}
           <button

@@ -17,6 +17,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import RoleManagement from "@/pages/RoleManagement";
 import UserManagement from "@/pages/UserManagement";
 import NotFound from "@/pages/NotFound";
+import History from "@/pages/History";
 
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -74,7 +75,7 @@ const App = () => (
             path="/history"
             element={
               <ProtectedRoute allowedRoles={["superadmin", "admin", "user"]}>
-                <Dashboards />
+                <History />
               </ProtectedRoute>
             }
           />
@@ -88,6 +89,15 @@ const App = () => (
             }
           />
 
+           <Route
+            path="/dashboards"
+            element={
+              <ProtectedRoute allowedRoles={["superadmin", "admin", "user"]}>
+                <Dashboards />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Admin Only */}
           <Route
             path="/settings"

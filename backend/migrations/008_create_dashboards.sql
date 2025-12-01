@@ -1,5 +1,5 @@
 -- =========================================================
--- 007_create_dashboards.sql — Dashboard + Widgets tables
+-- 008_create_dashboards.sql — Dashboard + Widgets tables
 -- Fully aligned with models.py and dashboardbuilder_routes.py
 -- =========================================================
 
@@ -22,12 +22,12 @@ CREATE TABLE IF NOT EXISTS dashboards (
 CREATE TABLE IF NOT EXISTS dashboard_widgets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     dashboard_id INTEGER NOT NULL,
-    widget_type TEXT NOT NULL,       -- temperature_chart, humidity_chart, line, gauge, table, onoff...
+    widget_type TEXT NOT NULL,        -- temperature_chart, humidity_chart, line, gauge, table, onoff...
     title TEXT,
     device_id INTEGER,
-    sensor TEXT,                     -- sensor topic or sensor ID
-    config TEXT,                     -- stored as JSON string from backend
-    position TEXT,                   -- optional grid placement (r1c1, r2c3, etc.)
+    sensor TEXT,                      -- sensor topic or sensor ID (string)
+    config TEXT,                      -- JSON string from backend
+    position TEXT,                    -- future grid layout support (r1c1, r2c3, ...)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (dashboard_id) REFERENCES dashboards(id) ON DELETE CASCADE,
