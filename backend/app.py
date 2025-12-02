@@ -159,6 +159,27 @@ def create_app():
     app.register_blueprint(dashboardbuilder_bp, url_prefix="/api/dashboardbuilder")
 
 
+        # ==========================================================
+    # Database Download Route (requested by sir)
+    # ==========================================================
+    @app.route("/download-db", methods=["GET"])
+    def download_db():
+        # Path to SQLite DB inside instance folder
+        instance_folder = os.path.join(app.root_path, "instance")
+        db_file = os.path.join(instance_folder, "app.db")
+
+        # IF condition your sir mentioned
+        if os.path.exists(db_file):
+            # Send database file to download
+            return send_from_directory(
+                directory=instance_folder,
+                path="app.db",
+                as_attachment=True
+            )
+        else:
+            # If DB file missing
+            return jsonify({"error": "Database file not found"}), 404
+
     # ==========================================================
     # Serve React Frontend Build (production)
     # ==========================================================

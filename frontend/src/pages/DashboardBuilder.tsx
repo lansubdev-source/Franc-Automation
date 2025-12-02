@@ -377,6 +377,7 @@ if (ownerId === "" || ownerId === null || ownerId === undefined) {
                   <i className="bi bi-fonts mr-1"></i> Dashboard Name{" "}
                   <span className="text-red-500">*</span>
                 </label>
+                
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
