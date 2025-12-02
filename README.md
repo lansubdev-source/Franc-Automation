@@ -6,112 +6,127 @@
 [![Dockerized](https://img.shields.io/badge/Deployed%20with-Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> 🚀 *An intelligent IoT-based automation dashboard for real-time device monitoring, MQTT data streaming, and 7-day history tracking — built using Flask, React, Tailwind CSS, and Docker.*
+> 🚀 An intelligent IoT dashboard for real-time device monitoring, MQTT streaming, and 7-day history — built with Flask, React, Tailwind CSS, and Docker.
 
 ---
 
-# 🛰️ Franc Automation Dashboard
+## Project Overview
 
-A full-stack IoT automation dashboard for real-time device monitoring, MQTT data streaming, historical data management, and data export.  
-Built using **Flask (Python)**, **React + Vite**, **Tailwind CSS**, and **Docker**.
+Franc Automation Dashboard is a full-stack IoT solution for real-time monitoring, device management, historical data retention (7-day rolling), and data export (CSV/JSON/ZIP). It targets industrial IoT use cases with a responsive UI and lightweight local storage.
 
----
-
-## 📘 Project Overview
-
-Franc Automation Dashboard provides:
-
-- Real-time MQTT sensor readings  
-- Live dashboard visualization  
-- Device management  
-- 7-day history with automatic rotation  
-- CSV / JSON / ZIP data export  
-- Responsive UI for industrial IoT environments  
-
-This system includes:
-
-- **Flask Backend** – APIs, MQTT ingestion, WebSockets  
-- **React Frontend** – Live UI, history, charts  
-- **SQLite Database** – Lightweight local storage  
-- **Docker Compose** – Simplified deployment  
+Key components:
+- Flask backend (APIs, MQTT ingestion, WebSockets)
+- React + Vite frontend (live UI, charts)
+- SQLite for storage
+- Docker Compose for deployment
 
 ---
 
-## ✨ Features
+## Features
 
-| Category | Description |
-|----------|-------------|
-| 🌐 Real-time Monitoring | MQTT sensor readings (temperature, humidity, pressure) |
-| ⚙️ Device Management | Add/manage connected IoT devices |
-| 📊 Dashboard | Real-time visualization with live updates |
-| 🕒 History | Auto-managed 7-day rolling history |
-| 💾 Export | JSON / CSV / ZIP download options |
-| 🎨 UI | Tailwind CSS + shadcn UI |
-| 🐳 Deployment | Dockerized backend & frontend |
+- Real-time MQTT sensor readings (temperature, humidity, pressure)
+- Live dashboard visualization with WebSockets
+- Device CRUD and management
+- 7-day auto-rotating history
+- CSV / JSON / ZIP export endpoints
+- Responsive UI with Tailwind CSS + shadcn UI
+- Dockerized deployment
 
 ---
 
-## 🧩 System Architecture
+## Architecture
 
 ![System Architecture](A_diagram_illustrates_a_Franc_Automation_Dashboard.png)
 
-## ⚙️ Tech Stack
+---
 
-### **Frontend**
-- React (Vite + TypeScript)  
-- Tailwind CSS  
-- shadcn-ui  
-- Socket.IO client  
+## Tech Stack
 
-### **Backend**
-- Flask (Python)  
-- SQLAlchemy ORM  
-- SQLite  
-- paho-mqtt  
-- Flask-SocketIO  
-- Eventlet  
+Frontend
+- React 18, TypeScript, Vite
+- Tailwind CSS, shadcn UI, Framer Motion, Recharts
+- Socket.IO client, React Router
 
-### **DevOps**
-- Docker & Docker Compose  
-- ngrok (optional)
+Backend
+- Python 3, Flask, Flask-SocketIO
+- SQLAlchemy, SQLite, Paho-MQTT, Eventlet
+- JWT authentication
+
+DevOps
+- Docker, Docker Compose, Git
 
 ---
 
-## 🖥️ Local Setup
+## Local Setup
 
-### **Backend Setup**
+### Backend (Python)
 
+> Requires Python 3.8+
+
+```bash
 cd backend
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
+
+# Activate the virtualenv
+# macOS / Linux
+source .venv/bin/activate
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+# Windows (cmd)
+.venv\Scripts\activate.bat
+
 pip install -r requirements.txt
+
+# run the app (option 1: module)
 python -m backend.app
-Backend runs at:
-http://127.0.0.1:5000
+# or (option 2: flask CLI)
+# export FLASK_APP=backend.app   # use set FLASK_APP=backend.app on Windows
+# flask run --reload
 
-Frontend Setup
+# Backend default: http://127.0.0.1:5000
+```
 
+### Frontend
+
+```bash
 cd frontend
 npm install
+# or for reproducible installs: npm ci
 npm run dev
-Frontend runs at:
-http://localhost:5173
 
-🐳 Docker Setup (Recommended)
+# Frontend default: http://localhost:5173
+```
 
+### Docker (recommended)
+
+```bash
+# build and run in foreground
 docker-compose up --build
 
-📡 API Endpoints
+# run detached
+docker-compose up -d --build
 
-Endpoint	Method	Description
-/api/data/latest	GET	Latest sensor reading
-/api/devices	GET	List all devices
-/api/history	GET	Last 7 days history
-/api/history/download/<date>	GET	JSON/CSV export
-/api/history/download/last7.zip	GET	Full 7-day ZIP export
+# stop & remove containers
+docker-compose down
+```
 
-📊 Example Sensor Data
+Notes:
+- Use environment files (.env) or compose overrides for production credentials.
+- Ensure ports 5000 and 5173 are free or adjust docker-compose/network settings as needed.
 
+## API Endpoints (examples)
+
+- GET `/api/data/latest` — Latest sensor reading  
+- GET `/api/devices` — List devices  
+- GET `/api/history` — Last 7 days history  
+- GET `/api/history/download/<date>` — JSON/CSV export for a date  
+- GET `/api/history/download/last7.zip` — Full 7-day ZIP export
+
+---
+
+## Example Sensor Payload
+
+```json
 {
   "device_id": 1,
   "temperature": 28.7,
@@ -119,9 +134,47 @@ Endpoint	Method	Description
   "pressure": 1013,
   "timestamp": "2025-11-10T16:00:54"
 }
+```
 
-🏁 Project Status
+---
 
-✔ Stable & fully functional
-✔ Real-time MQTT tested
-✔ History + exports working
+## Status & Roadmap
+
+Status: Stable — real-time MQTT, history, and exports tested.
+
+Completed
+- Real-time streaming, MQTT simulator, RBAC basics, responsive UI, Device CRUD
+
+In Progress
+- Historical analytics, dashboard builder, UI refinements
+
+Planned / Future
+- Alerts & notifications, multi-broker support, mobile app, AI anomaly detection, cloud & multi-tenant deployments
+
+---
+
+## Useful Commands
+
+Frontend
+```bash
+npm run dev
+npm run build
+```
+
+Backend
+```bash
+flask db migrate
+flask db upgrade
+```
+
+Docker
+```bash
+docker-compose restart
+docker logs francauto-app
+```
+
+---
+
+## Author
+
+Designed & developed by Jeffrin M. — Franc-Automation Development Team
