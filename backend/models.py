@@ -192,20 +192,6 @@ class Sensor(db.Model):
         }
 
 # ==========================================================
-# Settings Model
-# ==========================================================
-class Setting(db.Model):
-    __tablename__ = "settings"
-
-    id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(100), unique=True, nullable=False)
-    value = db.Column(db.String(255))
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def to_dict(self):
-        return {"key": self.key, "value": self.value}
-
-# ==========================================================
 # History Model
 # ==========================================================
 class History(db.Model):
@@ -283,3 +269,26 @@ class DashboardWidget(db.Model):
             "position": self.position,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+# ==========================================================
+# Settings Model
+# ==========================================================
+
+class Settings(db.Model):
+    __tablename__ = "settings"
+    __table_args__ = {"extend_existing": True}
+
+    id = db.Column(db.Integer, primary_key=True)
+    
+    site_name = db.Column(db.String(255))
+    site_description = db.Column(db.Text)
+    contact_email = db.Column(db.String(255))
+    footer_text = db.Column(db.Text)
+    registration_enabled = db.Column(db.Boolean, default=True)
+
+    logo_url = db.Column(db.String(255))
+    favicon_url = db.Column(db.String(255))
+    client_logo_url = db.Column(db.String(255))
+
+    def __repr__(self):
+        return f"<Settings {self.id}>"

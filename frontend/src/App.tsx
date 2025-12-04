@@ -80,14 +80,14 @@ const App = () => (
             }
           />
 
-          <Route
+          {/* <Route
             path="/dashboard-builder"
             element={
               <ProtectedRoute allowedRoles={["superadmin", "admin", "user"]}>
                 <DashboardBuilder />
               </ProtectedRoute>
             }
-          />
+          /> */}
 
            <Route
             path="/dashboards"

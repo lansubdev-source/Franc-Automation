@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ import {
   UserPlus,
 } from "lucide-react";
 
+const API_BASE = "http://localhost:5000/api";
+
 const Settings: React.FC = () => {
   // Form states
   const [siteName, setSiteName] = useState("");
@@ -32,29 +34,67 @@ const Settings: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Load settings from backend
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/settings`);
+        const data = await res.json();
+
+        if (data && data.data) {
+          setSiteName(data.data.site_name || "");
+          setSiteDescription(data.data.site_description || "");
+          setContactEmail(data.data.contact_email || "");
+          setFooterText(data.data.footer_text || "");
+          setRegistrationEnabled(data.data.registration_enabled ?? true);
+        }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  // Submit form data to backend
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Placeholder: backend connection to be implemented later
-    console.log({
-      siteName,
-      siteDescription,
-      contactEmail,
-      footerText,
-      registrationEnabled,
-      logoFile,
-      faviconFile,
-      clientLogoFile,
-    });
+    const formData = new FormData();
+    formData.append("siteName", siteName);
+    formData.append("siteDescription", siteDescription);
+    formData.append("contactEmail", contactEmail);
+    formData.append("footerText", footerText);
+    formData.append("registrationEnabled", String(registrationEnabled));
 
-    // Temporary success message
-    setSuccessMessage("Settings updated successfully!");
-    setErrorMessage("");
+    if (logoFile) formData.append("logoFile", logoFile);
+    if (faviconFile) formData.append("faviconFile", faviconFile);
+    if (clientLogoFile) formData.append("clientLogoFile", clientLogoFile);
+
+    try {
+      const res = await fetch(`${API_BASE}/settings`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccessMessage("Settings updated successfully!");
+        setErrorMessage("");
+      } else {
+        setErrorMessage(data.error || "Failed to update settings.");
+      }
+    } catch {
+      setErrorMessage("Server error. Try again.");
+    }
+
     setTimeout(() => setSuccessMessage(""), 2000);
   };
 
   return (
     <DashboardLayout>
+      {/* UI EXACTLY SAME (no changes) */}
       <div className="text-gray-100 min-h-screen p-6 bg-gradient-to-b from-gray-900 to-gray-950">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold flex items-center text-blue-400">
@@ -69,7 +109,9 @@ const Settings: React.FC = () => {
           </CardHeader>
 
           <CardContent>
+            {/* FORM START */}
             <form onSubmit={handleSubmit} className="space-y-5">
+
               {/* Site Name */}
               <div>
                 <label className="block mb-1 text-sm font-semibold text-gray-300">
@@ -86,7 +128,7 @@ const Settings: React.FC = () => {
                 />
               </div>
 
-              {/* Description */}
+              {/* Site Description */}
               <div>
                 <label className="block mb-1 text-sm font-semibold text-gray-300">
                   <AlignLeft className="inline w-4 h-4 mr-1 text-blue-400" />
@@ -188,7 +230,7 @@ const Settings: React.FC = () => {
                 />
               </div>
 
-              {/* Registration Checkbox */}
+              {/* Registration Toggle */}
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"

@@ -1,15 +1,17 @@
 // src/api.ts
-const API_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api";
+
+// Hard-coded backend API URL
+const API_BASE = "http://localhost:5000/api";
 
 export const api = {
-  // 🔹 Get all devices
+  // Get all devices
   async getDevices() {
     const res = await fetch(`${API_BASE}/devices`);
     if (!res.ok) throw new Error("Failed to fetch devices");
     return res.json();
   },
 
-  // 🔹 Add a new device
+  // Add new device
   async addDevice(data: any) {
     const res = await fetch(`${API_BASE}/devices`, {
       method: "POST",
@@ -20,7 +22,7 @@ export const api = {
     return res.json();
   },
 
-  // 🔹 Update an existing device
+  // Update device
   async updateDevice(id: number | string, data: any) {
     const res = await fetch(`${API_BASE}/devices/${id}`, {
       method: "PUT",
@@ -31,7 +33,7 @@ export const api = {
     return res.json();
   },
 
-  // 🔹 Delete a device
+  // Delete device
   async deleteDevice(id: number | string) {
     const res = await fetch(`${API_BASE}/devices/${id}`, {
       method: "DELETE",
