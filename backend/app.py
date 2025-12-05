@@ -159,8 +159,8 @@ def create_app():
     app.register_blueprint(dashboardbuilder_bp, url_prefix="/api/dashboardbuilder")
 
 
-        # ==========================================================
-    # Database Download Route (requested by sir)
+    # ==========================================================
+    # Database Download Route
     # ==========================================================
     @app.route("/download-db", methods=["GET"])
     def download_db():
@@ -168,7 +168,7 @@ def create_app():
         instance_folder = os.path.join(app.root_path, "instance")
         db_file = os.path.join(instance_folder, "app.db")
 
-        # IF condition your sir mentioned
+        # IF condition your
         if os.path.exists(db_file):
             # Send database file to download
             return send_from_directory(
